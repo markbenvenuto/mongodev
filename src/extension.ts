@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 }
 
-function registerDiagnostics(context: vscode.ExtensionContext, collection : vscode.DiagnosticCollection) {
+function registerDiagnostics(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
 	if (vscode.window.activeTextEditor) {
 		updateDiagnostics(vscode.window.activeTextEditor.document, collection);
 	}
@@ -81,30 +81,29 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 			line_num += 1;
 		}
 
-		if(diags.length > 0) {
+		if (diags.length > 0) {
 			collection.set(document.uri, diags);
 		}
 	}
 }
 
-function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection : vscode.DiagnosticCollection) {
+function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
 
-let type = "resmokeProvider";
-let testFile = path.join(vscode.workspace.rootPath!, `test1.log`);
-let cwd = vscode.workspace.rootPath;
-// TODO - make python path configurable and warn user if we cannot find on load
-// use getConfiguration.Update();
-// Note: There is no way to get the ${relativeFile} value from the task execution
-// so we hard code the output file
-let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py \${relativeFile} 2>&1 | tee ` + testFile;
+	let type = "resmokeProvider";
+	let testFile = path.join(vscode.workspace.rootPath!, `test1.log`);
+	let cwd = vscode.workspace.rootPath;
+	// TODO - make python path configurable and warn user if we cannot find on load
+	// use getConfiguration.Update();
+	// Note: There is no way to get the ${relativeFile} value from the task execution
+	// so we hard code the output file
+	let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py \${relativeFile} 2>&1 | tee ` + testFile;
 
-// TODO - make async
-if (! fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
-	console.log("Could not find SConstruct, falling back to extension test mode");
-	cmd = "python3 /Users/mark/mongo/buildscripts/resmoke.py jstests/ssl/test1.js 2>&1 | tee " + testFile;
-	cwd = "/Users/mark/mongo";
-}
-	
+	// TODO - make async
+	if (!fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
+		console.log("Could not find SConstruct, falling back to extension test mode");
+		cmd = "python3 /Users/mark/mongo/buildscripts/resmoke.py jstests/ssl/test1.js 2>&1 | tee " + testFile;
+		cwd = "/Users/mark/mongo";
+	}
 
 	vscode.tasks.registerTaskProvider(type, {
 		provideTasks(token?: vscode.CancellationToken) {
@@ -155,9 +154,9 @@ if (! fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
 				var openPath = vscode.Uri.file(testFile);
 				vscode.workspace.openTextDocument(openPath).then(doc => {
 					vscode.window.showTextDocument(doc);
-					
+
 					// Update the diagnostics now that we done wit the task
-					updateDiagnostics(doc,collection);
+					updateDiagnostics(doc, collection);
 					console.log("updage diags");
 				});
 			}
