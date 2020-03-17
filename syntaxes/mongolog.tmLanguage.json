@@ -1,0 +1,65 @@
+{
+    "scopeName": "text.log.mongodb",
+    "patterns":
+    [
+      {
+        "match" : "[csdb]\\d\\d\\d\\d\\d",
+        "name" : "comment log.process"
+      },
+      {
+        "match" : "\"s\":\"W\"",
+        "name" : "markup.deleted log.warning"
+      },
+      {
+        "match" : "\"s\":\"E\"",
+        "name" : "string.regexp, strong log.error"
+      },
+      {
+        "match" : "(uncaught exception|failed to load):.*",
+        "name" : "string.regexp, emphasis log.exception"
+      },
+      {
+        "match" : "assert.js|BACKTRACE|Exception|failed|Frame:",
+        "name" : "string.regexp, emphasis log.exception"
+      },
+      {
+        "match" : "An error occurred during the teardown of \\w+",
+        "name" : "string.regexp, emphasis log.resmoke"
+      },
+      {
+        "match" : "BadValue: .*",
+        "name" : "string.regexp, emphasis log.badvalue"
+      },
+      {
+        "match" : "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}[-\\+]\\d{4}",
+        "name" : "comment log.date"
+      },
+      {
+        "match" : "\"c\":\"(\\w+)\"",
+        "captures" : { 
+          "1" : { "name" : "comment log.component" }
+        }
+      }
+    ],
+    "repository": {
+      "expression": {
+        "patterns": [{ "include": "#letter" }, { "include": "#paren-expression" }]
+      },
+      "letter": {
+        "match": "a|b|c",
+        "name": "keyword.letter"
+      },
+      "paren-expression": {
+        "begin": "\\(",
+        "end": "\\)",
+        "beginCaptures": {
+          "0": { "name": "punctuation.paren.open" }
+        },
+        "endCaptures": {
+          "0": { "name": "punctuation.paren.close" }
+        },
+        "name": "expression.group",
+        "patterns": [{ "include": "#expression" }]
+      }
+    }
+  }
