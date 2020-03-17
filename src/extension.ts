@@ -23,15 +23,16 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Hello World!');
 	});
 
-	registerDiagnostics(context);
+	const collection = vscode.languages.createDiagnosticCollection('mongodev');
 
-	registerTaskProviderAndListeners(context);
+	registerDiagnostics(context, collection);
+
+	registerTaskProviderAndListeners(context, collection);
 
 	context.subscriptions.push(disposable);
 }
 
-function registerDiagnostics(context: vscode.ExtensionContext) {
-	const collection = vscode.languages.createDiagnosticCollection('mongodev');
+function registerDiagnostics(context: vscode.ExtensionContext, collection : vscode.DiagnosticCollection) {
 	if (vscode.window.activeTextEditor) {
 		updateDiagnostics(vscode.window.activeTextEditor.document, collection);
 	}
@@ -55,7 +56,7 @@ let errorMatchers: Array<[RegExp, string]> = [
 
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
 	if (document && path.basename(document.uri.fsPath).match(/(.*.log|log[_A-Za-z0-9]*|log_.*)/)) {
-		collection.clear();
+		collection.delete(document.uri);
 
 		const text = document.getText();
 
@@ -83,19 +84,21 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 		if(diags.length > 0) {
 			collection.set(document.uri, diags);
 		}
-	} else {
-		collection.clear();
 	}
 }
 
-function registerTaskProviderAndListeners(context: vscode.ExtensionContext) {
+function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection : vscode.DiagnosticCollection) {
 
 let type = "resmokeProvider";
 let testFile = path.join(vscode.workspace.rootPath!, `test1.log`);
 let cwd = vscode.workspace.rootPath;
 // TODO - make python path configurable and warn user if we cannot find on load
-let cmd = `python3 ${vscode.workspace.rootPath}/resmoke.py \${relativeFile} 2>&1 | tee ` + testFile;
+// use getConfiguration.Update();
+// Note: There is no way to get the ${relativeFile} value from the task execution
+// so we hard code the output file
+let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py \${relativeFile} 2>&1 | tee ` + testFile;
 
+// TODO - make async
 if (! fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
 	console.log("Could not find SConstruct, falling back to extension test mode");
 	cmd = "python3 /Users/mark/mongo/buildscripts/resmoke.py jstests/ssl/test1.js 2>&1 | tee " + testFile;
@@ -134,6 +137,14 @@ if (! fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
 	// 		console.log('onDidStartTask ' + a.execution.task.name);
 	// });
 	vscode.tasks.onDidStartTaskProcess((a) => {
+		if (a.execution.task.name === "Resmoke") {
+			// Clear the diagnostics for the test log file
+			// since vs code will show an empty file once the tests start running
+			// so an empty file cannot have errors.
+			collection.delete(vscode.Uri.file(testFile));
+		}
+	});
+	vscode.tasks.onDidEndTaskProcess((a) => {
 		console.log('onDidStartTaskProcess ' + a.execution.task.name);
 
 		if (a.execution.task.name === "Resmoke") {
@@ -144,6 +155,10 @@ if (! fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
 				var openPath = vscode.Uri.file(testFile);
 				vscode.workspace.openTextDocument(openPath).then(doc => {
 					vscode.window.showTextDocument(doc);
+					
+					// Update the diagnostics now that we done wit the task
+					updateDiagnostics(doc,collection);
+					console.log("updage diags");
 				});
 			}
 
