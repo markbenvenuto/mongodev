@@ -151,6 +151,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			if (e !== undefined) {
 				//console.log('onDidStartTaskProcess ' + e!.commandLine);
 
+				// TODO - check a.exitCode and maybe only open files on failure
 				var openPath = vscode.Uri.file(testFile);
 				vscode.workspace.openTextDocument(openPath).then(doc => {
 					vscode.window.showTextDocument(doc);

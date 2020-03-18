@@ -6,7 +6,7 @@ This is not for using MongoDB - see https://github.com/mongodb-js/vscode
 ## Features
 
 - Syntax highlighting for MongoDB .log files and Test logs
-    -- Recognizes files with .log as "mongolog" files so syntax highlighting purposes
+  - Recognizes files with .log as "mongolog" files so syntax highlighting purposes
 - Task Provider for Resmoke
 - Diagnostics Provide for log files
 
@@ -20,6 +20,24 @@ Since it is not on the marketplace and may never be
 
 1. `npm install && npm run compile`
 2. `ln -s ``pwd``  ~/.vscode/extensions/markbenvenuto.mongodev-0.0.1`
+   
+If you want to install it directly on a remote development side
+
+2. `ln -s ``pwd``  ~/.vscode-server/extensions/markbenvenuto.mongodev-0.0.1`
+
+
+## KeyBindings
+
+Since it does not install any keybindings, you may want to install some.
+
+Example:
+```
+    {
+        "key": "shift+cmd+v",
+        "command": "workbench.action.tasks.runTask",
+        "args" : "Resmoke test runner: Resmoke"
+    }
+```
 
 ## Extension Settings
 
