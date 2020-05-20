@@ -19,7 +19,7 @@
         "name" : "string.regexp, emphasis log.exception"
       },
       {
-        "match" : "assert.js|BACKTRACE|Exception|failed|Frame:",
+        "match" : "assert.js|BACKTRACE|Exception|failed|Frame:|mongo program was not running at.*",
         "name" : "string.regexp, emphasis log.exception"
       },
       {

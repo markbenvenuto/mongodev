@@ -51,7 +51,9 @@ let errorMatchers: Array<[RegExp, string]> = [
 	[/BadValue:.*/, "BadValue error"],
 	[/failed to load:.*/, "failed to load file"],
 	[/uncaught exception:.*/, "Uncaught Javascript exception"],
-
+	[/assert failed.*/, "JS Assert failed"],
+	[/assert.*are not equal/, "JS Equality Assert failed"],
+	[/mongo program was not running at.*/, "Mongo Program had bad exit"],
 ];
 
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
@@ -96,7 +98,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	// use getConfiguration.Update();
 	// Note: There is no way to get the ${relativeFile} value from the task execution
 	// so we hard code the output file
-	let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py \${relativeFile} 2>&1 | tee ` + testFile;
+	let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py run \${relativeFile} 2>&1 | tee ` + testFile;
 
 	// TODO - make async
 	if (!fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
