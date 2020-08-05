@@ -54,6 +54,8 @@ let errorMatchers: Array<[RegExp, string]> = [
 	[/assert failed.*/, "JS Assert failed"],
 	[/assert.*are not equal/, "JS Equality Assert failed"],
 	[/mongo program was not running at.*/, "Mongo Program had bad exit"],
+	[/Invalid access.*/, "Mongo Program crashed"],
+	[/Got signal.*/, "Mongo Program got fatal signal"],
 ];
 
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {

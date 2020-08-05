@@ -15,6 +15,10 @@
         "name" : "string.regexp, strong log.error"
       },
       {
+        "match" : "\"s\":\"F\".*",
+        "name" : "string.regexp, strong log.error"
+      },
+      {
         "match" : "(uncaught exception|failed to load):.*",
         "name" : "string.regexp, emphasis log.exception"
       },
