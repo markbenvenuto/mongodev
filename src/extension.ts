@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as readline from 'readline';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -190,17 +191,18 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	});
 }
 
-async function superrun(args: any[]) {
+async function superrun(test_executable: string, test_suite: string, test_name: string) {
 		// The code you place here will be executed every time your command is executed
 
-		console.log("args - " + args.length + " -- " + args[0]);
+		console.log("args - " + test_executable + " -- " + test_suite + " -- " + test_name);
 
 		// await vscode.commands.executeCommand('revealLine', {lineNumber: 10, at: 'top'});
 
 		// Display a message box to the user
+		// TODO - warn user about unknown test executable
 		//vscode.window.showInformationMessage('Hello World!');
 		let execution = new vscode.ShellExecution(
-			"echo hi_yeah", {
+			`echo hi_yeah && ninja ${test_executable} && ${test_executable} --suite ${test_suite} --filter ${test_name}`, {
 			//cwd: cwd,
 		});
 
@@ -253,6 +255,69 @@ function registerCodeLensProvider() {
     });
 }
 
+// TODO - make this async somehow
+function loadNinjaCache() : Map<String, String>{
+	const file_name = '/Users/mark/mongo/build.ninja';
+    const parse_ninja = new RegExp(/^build \+([\w\.]+):\s+EXEC\s+([\w\/\\\.]+)/);
+
+	let mapping = new Map<String, String>();
+		// create instance of readline
+	// each instance is associated with single input stream
+	let rl = readline.createInterface({
+		input: fs.createReadStream(file_name)
+	});
+
+	let line_no = 0;
+
+	// event is emitted after each line
+	let line_complete = false;
+	let buffered_line = "";
+	let need_line = false;
+	rl.on('line', function(line) {
+		line_no++;
+		if(line.startsWith("build +")) {
+			// console.log(line);
+			buffered_line = line;
+			if(line.endsWith("$")) {
+				need_line = true;
+				line_complete = false;
+			} else {
+				need_line = false;
+				line_complete = true;
+			}
+
+		}
+		if(need_line) {
+			buffered_line += line;
+			if(line.endsWith("$")) {
+				need_line = true;
+			} else {
+				need_line = false;
+				line_complete = true;
+			}
+
+		}
+		if(line_complete) {
+			line_complete = false;
+				buffered_line = buffered_line.replace("$", "");
+				let m = parse_ninja.exec(buffered_line);
+				if(m != null) {
+					let test_name_file = m[1];
+					let test_name_exec = m[2];
+					// console.log(`${test_name_exec} -- ${test_name_file}`);  
+					mapping.set(test_name_file, test_name_exec)
+				}
+		}
+	});
+
+	// end
+	rl.on('close', function() {
+		// console.log('Total lines : ' + line_no);
+	});
+
+	return mapping;
+}
+
 /**
  * CodelensProvider
  */
@@ -262,6 +327,8 @@ export class CodelensProvider implements vscode.CodeLensProvider {
     private regex: RegExp;
     private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
+
+	private ninja_cache : Map<String, String> = new Map<String, String>();
 
     constructor() {
         this.regex = /TEST/gm;
@@ -273,31 +340,52 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 
     public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
 
-		console.log('Providing code lens');
+		console.log('mongodev - Providing code lens');
+
+		if(this.ninja_cache.size == 0) {
+			console.log("Loading Ninja file");
+			this.ninja_cache = loadNinjaCache();
+		}
 
         if (vscode.workspace.getConfiguration("mongodev").get("enableCodeLens", true)) {
             this.codeLenses = [];
-            const regex = new RegExp(this.regex);
+			const regex = new RegExp(this.regex);
+			
+			const test_parser = new RegExp(/TEST(_F)?\((?<suite>\w+),\s+(?<name>\w+)/);
             const text = document.getText();
             let matches;
             while ((matches = regex.exec(text)) !== null) {
                 const line = document.lineAt(document.positionAt(matches.index).line);
-				console.log('found match - ' + line);
+
+				let testm = test_parser.exec(line.text);
+				if(testm == null) {
+					console.log('could not parse line for test - ' + line);
+					continue;
+				}
+				let test_suite = testm.groups?.suite || "unknown";
+				let test_name = testm.groups?.name|| "unknown";
+				// console.log('found match - ' + line);
+
+
                 const indexOf = line.text.indexOf(matches[0]);
                 const position = new vscode.Position(line.lineNumber, indexOf);
                 const range = document.getWordRangeAtPosition(position, new RegExp(this.regex));
                 if (range) {
+
+					const test_executable_key = path.basename(document.fileName, path.extname(document.fileName));
+					const test_executable : String = this.ninja_cache.get(test_executable_key) || "unknown_test_executable";
+
 					const runTestCmd = {
 						title: "▶\u{fe0e} Run Test",
 						tooltip: "Tooltip provided by sample extension",
 						command: "mongodev.superrun",
-						arguments: ["Argument 1", false]
+						arguments: [test_executable, test_suite, test_name]
 					};
 					const debugCmd = {
 						title: "Debug",
 						tooltip: "Tooltip provided by sample extension",
 						command: "mongodev.codelensAction",
-						arguments: ["Argument 1", false]
+						arguments: [test_executable, test_suite, test_name]
 					};
 
 					this.codeLenses.push( new vscode.CodeLens(range, runTestCmd)),

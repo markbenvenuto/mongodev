@@ -18,13 +18,13 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-        "configuration": {
-            "properties": {
-                "mongodev.enableCodeLens": {
-                    "type": "boolean",
-                    "default": true
-                }
-            }
+		"configuration": {
+			"properties": {
+				"mongodev.enableCodeLens": {
+					"type": "boolean",
+					"default": true
+				}
+			}
 		},
 		"commands": [
 			{
@@ -36,15 +36,15 @@
 				"title": "MongoDev SuperRun"
 			},
 			{
-                "title": "Enable MongoDev CodeLens",
-                "command": "mongodev.enableCodeLens",
-                "category": "MongoDev Sample"
-            },
-            {
-                "title": "Disable MongoDev Codelens",
-                "command": "mongodev.disableCodeLens",
-                "category": "MongoDev Sample"
-            }
+				"title": "Enable MongoDev CodeLens",
+				"command": "mongodev.enableCodeLens",
+				"category": "MongoDev Sample"
+			},
+			{
+				"title": "Disable MongoDev Codelens",
+				"command": "mongodev.disableCodeLens",
+				"category": "MongoDev Sample"
+			}
 		],
 		"languages": [
 			{
@@ -92,5 +92,5 @@
 		"mocha": "^7.0.1",
 		"typescript": "^3.7.5",
 		"vscode-test": "^1.3.0"
-	}
+	},
 }
