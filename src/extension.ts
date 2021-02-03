@@ -116,8 +116,9 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	// use getConfiguration.Update();
 	// Note: There is no way to get the ${relativeFile} value from the task execution
 	// so we hard code the output file
+	// TODO - add mrlog integration
 	let extensionPath = context.extensionPath;
-	let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(python ${extensionPath}/python/get_test_cmd.py \${relativeFile}) 2>&1 | tee ` + testFile;
+	let cmd = `python3 ${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(python3 ${extensionPath}/python/get_test_cmd.py \${relativeFile}) 2>&1 | tee ` + testFile;
 
 	// TODO - make async
 	if (!fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
