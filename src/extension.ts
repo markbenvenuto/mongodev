@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('extension.helloWorld', () => {
+	let disposable = vscode.commands.registerCommand('mongodev.helloWorld', () => {
 		// The code you place here will be executed every time your command is executed
 
 		// Display a message box to the user
@@ -29,8 +29,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 	registerTaskProviderAndListeners(context, collection);
 
+	registerCodeLensProvider();
+
+	registerCodeLensTasks(context);
+
 	context.subscriptions.push(disposable);
 }
+
+// this method is called when your extension is deactivated
+export function deactivate() { }
+
 
 function registerDiagnostics(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
 	if (vscode.window.activeTextEditor) {
@@ -58,13 +66,14 @@ let errorMatchers: Array<[RegExp, string]> = [
 	[/Got signal.*/, "Mongo Program got fatal signal"],
 ];
 
-function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
+function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): number {
 	if (document && path.basename(document.uri.fsPath).match(/(.*.log|log[_A-Za-z0-9]*|log_.*)/)) {
 		collection.delete(document.uri);
 
 		const text = document.getText();
 
 		let line_num = 0;
+		let first_line_num = undefined;
 		const lines = text.split("\n");
 		let diags: Array<vscode.Diagnostic> = [];
 
@@ -72,6 +81,9 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 			for (const em of errorMatchers) {
 				const match = line.match(em[0]);
 				if (match) {
+					if(first_line_num == undefined) {
+						first_line_num = line_num;
+					}
 					let pos = match.index ?? 0;
 					diags.push({
 						code: '',
@@ -88,7 +100,11 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 		if (diags.length > 0) {
 			collection.set(document.uri, diags);
 		}
+
+		return first_line_num || 0 ;
 	}
+
+	return 0;
 }
 
 function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
@@ -159,11 +175,13 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 				// TODO - check a.exitCode and maybe only open files on failure
 				var openPath = vscode.Uri.file(testFile);
 				vscode.workspace.openTextDocument(openPath).then(doc => {
-					vscode.window.showTextDocument(doc);
-
-					// Update the diagnostics now that we done wit the task
-					updateDiagnostics(doc, collection);
-					console.log("updage diags");
+					return vscode.window.showTextDocument(doc).then( () => {
+						// Update the diagnostics now that we done with the task
+						const first_line = updateDiagnostics(doc, collection);
+						console.log("updage diags");
+						
+						return vscode.commands.executeCommand('revealLine', {lineNumber: first_line, at: 'top'});
+					});
 				});
 			}
 
@@ -171,5 +189,135 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	});
 }
 
-// this method is called when your extension is deactivated
-export function deactivate() { }
+async function superrun(args: any[]) {
+		// The code you place here will be executed every time your command is executed
+
+		console.log("args - " + args.length + " -- " + args[0]);
+
+		// await vscode.commands.executeCommand('revealLine', {lineNumber: 10, at: 'top'});
+
+		// Display a message box to the user
+		//vscode.window.showInformationMessage('Hello World!');
+		let execution = new vscode.ShellExecution(
+			"echo hi_yeah", {
+			//cwd: cwd,
+		});
+
+		const task = new vscode.Task(
+			{type :"foo"},
+			vscode.TaskScope.Workspace,
+			"CodeLens Run",
+			"mongodev",
+			execution
+		);
+
+		task.group = vscode.TaskGroup.Test;
+		task.presentationOptions = {
+			reveal: vscode.TaskRevealKind.Always,
+			panel: vscode.TaskPanelKind.Dedicated,
+			clear: true,
+		};
+
+		return vscode.tasks.executeTask(task);
+}
+
+function registerCodeLensTasks(context: vscode.ExtensionContext) {
+
+		// The command has been defined in the package.json file
+	// Now provide the implementation of the command with registerCommand
+	// The commandId parameter must match the command field in package.json
+	let disposable = vscode.commands.registerCommand('mongodev.superrun', superrun);
+
+	context.subscriptions.push(disposable);
+
+
+}
+
+function registerCodeLensProvider() {
+
+    const codelensProvider = new CodelensProvider();
+
+    vscode.languages.registerCodeLensProvider("*", codelensProvider);
+
+    vscode.commands.registerCommand("mongodev.enableCodeLens", () => {
+        vscode.workspace.getConfiguration("mongodev").update("enableCodeLens", true, true);
+    });
+
+    vscode.commands.registerCommand("mongodev.disableCodeLens", () => {
+        vscode.workspace.getConfiguration("mongodev").update("enableCodeLens", false, true);
+    });
+
+    vscode.commands.registerCommand("mongodev.codelensAction", (args: any) => {
+        vscode.window.showInformationMessage(`CodeLens action clicked with args=${args}`);
+    });
+}
+
+/**
+ * CodelensProvider
+ */
+export class CodelensProvider implements vscode.CodeLensProvider {
+
+    private codeLenses: vscode.CodeLens[] = [];
+    private regex: RegExp;
+    private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
+
+    constructor() {
+        this.regex = /TEST/gm;
+
+        vscode.workspace.onDidChangeConfiguration((_) => {
+            this._onDidChangeCodeLenses.fire();
+        });
+    }
+
+    public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
+
+		console.log('Providing code lens');
+
+        if (vscode.workspace.getConfiguration("mongodev").get("enableCodeLens", true)) {
+            this.codeLenses = [];
+            const regex = new RegExp(this.regex);
+            const text = document.getText();
+            let matches;
+            while ((matches = regex.exec(text)) !== null) {
+                const line = document.lineAt(document.positionAt(matches.index).line);
+				console.log('found match - ' + line);
+                const indexOf = line.text.indexOf(matches[0]);
+                const position = new vscode.Position(line.lineNumber, indexOf);
+                const range = document.getWordRangeAtPosition(position, new RegExp(this.regex));
+                if (range) {
+					const runTestCmd = {
+						title: "▶\u{fe0e} Run Test",
+						tooltip: "Tooltip provided by sample extension",
+						command: "mongodev.superrun",
+						arguments: ["Argument 1", false]
+					};
+					const debugCmd = {
+						title: "Debug",
+						tooltip: "Tooltip provided by sample extension",
+						command: "mongodev.codelensAction",
+						arguments: ["Argument 1", false]
+					};
+
+					this.codeLenses.push( new vscode.CodeLens(range, runTestCmd)),
+					this.codeLenses.push( new vscode.CodeLens(range.with(range.start.with({ character: range.start.character + 1 })), debugCmd));
+                }
+            }
+            return this.codeLenses;
+        }
+        return [];
+    }
+
+    // public resolveCodeLens(codeLens: vscode.CodeLens, token: vscode.CancellationToken) {
+    //     if (vscode.workspace.getConfiguration("mongodev").get("enableCodeLens", true)) {
+    //         codeLens.command = {
+    //             title: "▶\u{fe0e} Run Test",
+    //             tooltip: "Tooltip provided by sample extension",
+    //             command: "mongodev.codelensAction",
+    //             arguments: ["Argument 1", false]
+    //         };
+    //         return codeLens;
+    //     }
+    //     return null;
+    // }
+}

@@ -11,18 +11,40 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.helloWorld",
+		"onCommand:mongodev.helloWorld",
 		"onCommand:workbench.action.tasks.runTask",
 		"onLanguage:mongolog",
 		"workspaceContains:SConstruct"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
+        "configuration": {
+            "properties": {
+                "mongodev.enableCodeLens": {
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+		},
 		"commands": [
 			{
-				"command": "extension.helloWorld",
-				"title": "Hello World"
-			}
+				"command": "mongodev.helloWorld",
+				"title": "MongoDev Hello World"
+			},
+			{
+				"command": "mongodev.superrun",
+				"title": "MongoDev SuperRun"
+			},
+			{
+                "title": "Enable MongoDev CodeLens",
+                "command": "mongodev.enableCodeLens",
+                "category": "MongoDev Sample"
+            },
+            {
+                "title": "Disable MongoDev Codelens",
+                "command": "mongodev.disableCodeLens",
+                "category": "MongoDev Sample"
+            }
 		],
 		"languages": [
 			{
