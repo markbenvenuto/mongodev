@@ -12,7 +12,11 @@ This is not for using MongoDB - see https://github.com/mongodb-js/vscode
 
 ## Requirements
 
-Resmoke task provider only works in Mongo repo
+1. Ninja must be installed and in path
+2. Ubuntu 18.04/Fedora 30+ Linux Or macOS
+3. Assumes python3 is installed and in path
+4. Resmoke task provider only works in Mongo repo
+
 
 ## Install
 
@@ -25,6 +29,17 @@ If you want to install it directly on a remote development side
 
 2. `ln -s ``pwd``  ~/.vscode-server/extensions/markbenvenuto.mongodev-0.0.1`
 
+
+## Roadmap/TODO
+- Add mrlog intergration
+- Add ability to re-run test1.log by sniffing file for last command
+- Code Lens integration for debug
+- Add ability to run current selected test without codelens
+- Add config settings for python, mrlog, scroll context, ninja file to use
+- Todo - test with other ninja file generator
+- Add problem matches for gcc/msvc/unit tests
+- Add task definition for generate compiledb
+- 
 
 ## KeyBindings
 
@@ -62,12 +77,4 @@ None
 ### 1.0.0
 
 Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
 
