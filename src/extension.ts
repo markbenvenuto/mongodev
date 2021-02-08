@@ -35,6 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	registerCodeLensTasks(context);
 
+	registerDocumentLinkProvider();
+
 	context.subscriptions.push(disposable);
 }
 
@@ -359,6 +361,10 @@ function loadNinjaCache(): Thenable<Map<String, String>> {
 
 /**
  * CodelensProvider
+ * 
+ * For C++ MongoDB Unit tests.
+ * 
+ * Looks for TEST.* functions
  */
 export class CodelensProvider implements vscode.CodeLensProvider {
 
@@ -448,4 +454,67 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 	//     }
 	//     return null;
 	// }
+}
+
+/**
+ * Provide hyperlinks to files in test results from the mongo shell
+ * 
+ * Looks for 
+ * 
+ * foo@a/b/c.js:line:col
+ */
+class DocumentLinkProvider implements vscode.DocumentLinkProvider {
+
+	//	/@(?<file>[\w\/\\]+\.js):(?<line>\d+):(?<col>\d+)/gm
+	// vscode.Uri.file("abc").  .with({ fragment: `${line}${col}` }),
+	private regex: RegExp;
+
+	constructor() { 
+		this.regex = new RegExp(/@(?<file>[\w\/\\]+\.js):(?<line>\d+):(?<col>\d+)/gm);
+	}
+
+	public provideDocumentLinks(document: vscode.TextDocument,
+		token: vscode.CancellationToken,
+	): vscode.ProviderResult<vscode.DocumentLink[]> {
+		console.log("provide doc links");
+		const result: vscode.DocumentLink[] = [];
+
+		let folder: vscode.WorkspaceFolder | undefined;
+		if (vscode.workspace.workspaceFolders) {
+			folder = vscode.workspace.workspaceFolders[0];
+		}
+
+		let root_dir = folder?.uri.fsPath;
+
+		const text = document.getText();
+		let matches;
+		while ((matches = this.regex.exec(text)) !== null) {
+			const line = document.lineAt(document.positionAt(matches.index).line);
+
+			let file_name = matches.groups?.file || "unknown";
+			let line_number = matches.groups?.line || 0;
+			let col_number = matches.groups?.col || 0;
+			console.log('found match - ' + line);
+
+			const indexOf = line.text.indexOf(matches[0]);
+			const position = new vscode.Position(line.lineNumber, indexOf);
+			const range = document.getWordRangeAtPosition(position, new RegExp(this.regex));
+			if (range) {
+				result.push(
+					new vscode.DocumentLink(
+						range,
+						vscode.Uri.file(path.join(root_dir || ".", file_name)).with({ fragment: `${line_number}` }),
+					)
+				);
+			}
+		}
+		return result;
+	}
+
+}
+
+function registerDocumentLinkProvider() {
+	console.log("Register doc link");
+	vscode.languages.registerDocumentLinkProvider({ language: 'mongolog' }, new DocumentLinkProvider());
+
 }
