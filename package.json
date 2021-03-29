@@ -10,6 +10,7 @@
 	"categories": [
 		"Other"
 	],
+	"extensionKind": ["ui", "workspace"],
 	"activationEvents": [
 		"onCommand:mongodev.helloWorld",
 		"onCommand:workbench.action.tasks.runTask",
@@ -22,7 +23,38 @@
 			"properties": {
 				"mongodev.enableCodeLens": {
 					"type": "boolean",
-					"default": true
+					"default": true,
+					"description": "Enable Code Lens for Running & Debugging MongoDB C++ Unit Tests"
+				},
+				"mongodev.python3": {
+					"type": "string",
+					"default": "python3",
+					"description": "Path to python interpreter, i.e. /usr/bin/python3"
+				},
+				"mongodev.mrlog": {
+					"type": "string",
+					"default": "mrlog",
+					"description": "Path to mrlog, i.e. /usr/bin/mrlog"
+				},
+				"mongodev.ninja": {
+					"type": "string",
+					"default": "ninja",
+					"description": "Path to ninja, i.e. /usr/bin/ninja"
+				},
+				"mongodev.ninjaFile": {
+					"type": "string",
+					"default": "linux-clang-local.ninja",
+					"description": "Name of ninja file to use"
+				},
+				"mongodev.testScrollback": {
+					"type": "integer",
+					"default": 5,
+					"description": "Number of lines to scroll back after opening up a test file"
+				},
+				"mongodev.debugEngine": {
+					"type": "string",
+					"default": "auto",
+					"description": "Name of debug engine to use, in auto mode searches ["
 				}
 			}
 		},

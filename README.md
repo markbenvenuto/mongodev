@@ -6,15 +6,18 @@ This is not for using MongoDB - see https://github.com/mongodb-js/vscode
 ## Features
 
 - Syntax highlighting for MongoDB .log files and Test logs
-  - Recognizes files with .log as "mongolog" files so syntax highlighting purposes
-- Task Provider for Resmoke
-- Diagnostics Provide for log files
+  - Recognizes files with `.log` as `mongolog` files so syntax highlighting purposes
+  - Recognizes errors in log files and marks them as "Problems" with red siggly
+- Resmoke integration
+  - Runs tests with resmoke and opens log files into new window
+- Run Test
+  - Adds CodeLens for `Run Tests` and `Debug` to unit tests
 
 ## Requirements
 
 1. Ninja must be installed and in path
-2. Ubuntu 18.04/Fedora 30+ Linux Or macOS
-3. Assumes python3 is installed and in path
+2. Ubuntu 18.04/Fedora 30+ Linux Or macOS 10.14+
+3. Assumes `python3` is installed and in path. If `python3` is named `python`, you will need to update settings.
 4. Resmoke task provider only works in Mongo repo
 
 
@@ -24,22 +27,23 @@ Since it is not on the marketplace and may never be
 
 1. `npm install && npm run compile`
 2. `ln -s ``pwd``  ~/.vscode/extensions/markbenvenuto.mongodev-0.0.1`
-   
+
 If you want to install it directly on a remote development side
 
 2. `ln -s ``pwd``  ~/.vscode-server/extensions/markbenvenuto.mongodev-0.0.1`
 
 
 ## Roadmap/TODO
-- Add mrlog intergration
 - Add ability to re-run test1.log by sniffing file for last command
-- Code Lens integration for debug
 - Add ability to run current selected test without codelens
-- Add config settings for python, mrlog, scroll context, ninja file to use
 - Todo - test with other ninja file generator
 - Add problem matches for gcc/msvc/unit tests
 - Add task definition for generate compiledb
-- 
+- Mongo specific process picker
+  - https://github.com/aprilandjan/vscode-node-debug-process-picker
+  - https://github.com/golang/vscode-go/blob/30b086f47878f2fcfa8d68d79db94ab6397a81c6/src/pickProcess.ts#L66
+- Format with clang_format.py script
+- Add mrlog bootstrapping - see https://github.com/rust-analyzer/rust-analyzer/blob/20a911f3cc2beb0409ab71cc1560648374745f7f/editors/code/src/main.ts#L160
 
 ## KeyBindings
 
