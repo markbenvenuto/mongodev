@@ -104,7 +104,7 @@
 		],
 		"taskDefinitions": [
 			{
-				"type": "resmokeProvider"
+				"type": "mongodev"
 			}
 		]
 	},

@@ -2,6 +2,10 @@ import argparse
 import os.path
 import sys
 
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
 def camel_to_snake(suite):
     # Convert from camel case to snake case
     orig = suite
@@ -14,27 +18,30 @@ def camel_to_snake(suite):
 
     return suite
 
-def get_suite(file):
+def get_suite(file_name):
 
-    if file.endswith("test1.log"):
-        with open(file) as rfh:
+    if file_name.endswith("test1.log"):
+        with open(file_name) as rfh:
             line = rfh.readline()
+            eprint("Line:" + line)
             count = 1
             while count < 10:
                 if "--suite" in line:
                     idx = line.find("--suite")
-                    return line[idx+8:]
+                    return "--suite=" + line[idx+8:].rstrip()
 
                 count += 1
                 line = rfh.readline()
+                eprint("Line:" + line)
 
             return "failed_to_find_suite_in_test1.log"
 
 
+
     # Handle enterprise
-    if "enterprise" in file:
-        idx = file.find("jstests")
-        file = file[idx:]
+    if "enterprise" in file_name:
+        idx = file_name.find("jstests")
+        file = file_name[idx:]
         parts = file.split("/")
 
         # assert len(parts) == 8
@@ -44,11 +51,11 @@ def get_suite(file):
 
         suite = suite.replace("encryptdb", "ese")
 
-        return suite
+        return '--suite=%s %s' %(suite, file_name)
 
-    if "jstests" in file:
-        idx = file.find("jstests")
-        file = file[idx:]
+    if "jstests" in file_name:
+        idx = file_name.find("jstests")
+        file = file_name[idx:]
         parts = file.split("/")
 
         # assert len(parts) == 3
@@ -64,11 +71,12 @@ def get_suite(file):
         # if suite not in ["auth", "no_passthrough"]:
         #     suite += "_auth"
 
-        return suite
+        return '--suite=%s %s' %(suite, file_name)
+
 
 
 if __name__ == "__main__":
 
     relative_test_file = sys.argv[1]
-    print('--suite=%s %s' %(get_suite(relative_test_file), relative_test_file))
+    print(get_suite(relative_test_file))
 

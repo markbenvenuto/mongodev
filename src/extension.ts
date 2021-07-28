@@ -127,7 +127,7 @@ function wrapWithMrlogFile(cmd: string, args: string, testFile: string) {
 
 function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
 
-	let type = "resmokeProvider";
+	let type = "mongodev";
 	let testFile = path.join(vscode.workspace.rootPath!, `test1.log`);
 	let cwd = vscode.workspace.rootPath;
 	// TODO - add support for virtual env?
@@ -152,16 +152,40 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			let execution = new vscode.ShellExecution(cmd, {
 				cwd: cwd,
 			});
-			let t =
+			let resmokeTask =
 				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
 					"Resmoke", "mongodev", execution)
 				;
 
-			t.group = vscode.TaskGroup.Test;
-			t.runOptions.reevaluateOnRerun = true;
-			t.source = "Resmoke test runner";
+			resmokeTask.group = vscode.TaskGroup.Test;
+			resmokeTask.runOptions.reevaluateOnRerun = true;
+			resmokeTask.source = "Resmoke test runner";
 
-			return [t];
+			let clangFormatTask =
+				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+					"MyClangFormat", "mongodev", new vscode.ShellExecution(
+						python3 + " ${workspaceFolder}/buildscripts/clang_format.py format-my", {cwd:cwd}))
+
+				;
+
+			clangFormatTask.group = vscode.TaskGroup.Test;
+			clangFormatTask.runOptions.reevaluateOnRerun = true;
+			clangFormatTask.presentationOptions.clear = true;
+			clangFormatTask.source = "Clang Format";
+
+			let compileDBTask =
+				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+					"Compile_Commands.json", "mongodev", new vscode.ShellExecution(
+						python3 + "  buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources", {cwd:cwd}))
+
+				;
+
+			compileDBTask.group = vscode.TaskGroup.Test;
+			compileDBTask.runOptions.reevaluateOnRerun = true;
+			compileDBTask.presentationOptions.clear = true;
+			compileDBTask.source = "Clang Format";
+
+			return [resmokeTask, clangFormatTask, compileDBTask];
 		},
 		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken) {
 			return _task;
@@ -526,7 +550,7 @@ class DocumentLinkProvider implements vscode.DocumentLinkProvider {
 	private regex: RegExp;
 
 	constructor() {
-		this.regex = new RegExp(/@(?<file>[\w\/\\]+\.js):(?<line>\d+):(?<col>\d+)/gm);
+		this.regex = new RegExp(/@(?<file>[\w\/\\-]+\.js):(?<line>\d+):(?<col>\d+)/gm);
 	}
 
 	public provideDocumentLinks(document: vscode.TextDocument,
@@ -550,7 +574,7 @@ class DocumentLinkProvider implements vscode.DocumentLinkProvider {
 			let file_name = matches.groups?.file || "unknown";
 			let line_number = matches.groups?.line || 0;
 			let col_number = matches.groups?.col || 0;
-			// console.log('found match - ' + line_number);
+			console.log(`found match - ${line_number} - ${col_number}`);
 
 			const indexOf = line.text.indexOf(matches[0]);
 			const position = new vscode.Position(line.lineNumber, indexOf);
@@ -561,11 +585,18 @@ class DocumentLinkProvider implements vscode.DocumentLinkProvider {
 				// VS Code code - https://github.com/microsoft/vscode/blob/a699ffaee62010c4634d301da2bbdb7646b8d1da/src/vs/workbench/contrib/output/common/outputLinkComputer.ts#L151
 				// These links only seem to work locally, not remote
 				// On remote, they open the file but do not jump to the line
+				//
+
+				let full_file_path = path.join(root_dir || ".", file_name);
+				if (file_name.startsWith('/')) {
+					full_file_path = file_name;
+				}
+
 				result.push(
 					new vscode.DocumentLink(
 						range,
 						// vscode.Uri.file(path.join(root_dir || ".", file_name) + `:${line_number}`),
-						vscode.Uri.file(path.join(root_dir || ".", file_name) ).with({ fragment: `${line_number}:${col_number}` }),
+						vscode.Uri.file(full_file_path).with({ fragment: `${line_number}:${col_number}` }),
 						)
 				);
 			}

@@ -34,15 +34,13 @@ If you want to install it directly on a remote development side
 
 
 ## Roadmap/TODO
-- Add ability to re-run test1.log by sniffing file for last command
 - Add ability to run current selected test without codelens
+- Add ability to debug current selected test without codelens
 - Todo - test with other ninja file generator
 - Add problem matches for gcc/msvc/unit tests
-- Add task definition for generate compiledb
 - Mongo specific process picker
   - https://github.com/aprilandjan/vscode-node-debug-process-picker
   - https://github.com/golang/vscode-go/blob/30b086f47878f2fcfa8d68d79db94ab6397a81c6/src/pickProcess.ts#L66
-- Format with clang_format.py script
 - Add mrlog bootstrapping - see https://github.com/rust-analyzer/rust-analyzer/blob/20a911f3cc2beb0409ab71cc1560648374745f7f/editors/code/src/main.ts#L160
 
 ## KeyBindings
