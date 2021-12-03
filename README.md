@@ -42,6 +42,8 @@ If you want to install it directly on a remote development side
   - https://github.com/aprilandjan/vscode-node-debug-process-picker
   - https://github.com/golang/vscode-go/blob/30b086f47878f2fcfa8d68d79db94ab6397a81c6/src/pickProcess.ts#L66
 - Add mrlog bootstrapping - see https://github.com/rust-analyzer/rust-analyzer/blob/20a911f3cc2beb0409ab71cc1560648374745f7f/editors/code/src/main.ts#L160
+- Add jump to nearest SConscript
+
 
 ## KeyBindings
 

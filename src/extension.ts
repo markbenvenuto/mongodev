@@ -115,14 +115,14 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 function wrapWithMrlog(cmd: string, args: string) {
 	let mrlog = vscode.workspace.getConfiguration("mongodev").get("mrlog");
 
-	return `mrlog -e ${cmd} -- ${args}`;
+	return `${mrlog} -e ${cmd} -- ${args}`;
 }
 
 
 function wrapWithMrlogFile(cmd: string, args: string, testFile: string) {
 	let mrlog = vscode.workspace.getConfiguration("mongodev").get("mrlog");
 
-	return `mrlog -t -o ${testFile} -e ${cmd} -- ${args}`;
+	return `${mrlog} -t -o ${testFile} -e ${cmd} -- ${args}`;
 }
 
 function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
@@ -148,7 +148,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	}
 
 	vscode.tasks.registerTaskProvider(type, {
-		provideTasks(token?: vscode.CancellationToken) {
+		provideTasks(token?: vscode.CancellationToken) : vscode.Task[] {
 			let execution = new vscode.ShellExecution(cmd, {
 				cwd: cwd,
 			});
@@ -168,7 +168,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 
 				;
 
-			clangFormatTask.group = vscode.TaskGroup.Test;
+			clangFormatTask.group = vscode.TaskGroup.Build;
 			clangFormatTask.runOptions.reevaluateOnRerun = true;
 			clangFormatTask.presentationOptions.clear = true;
 			clangFormatTask.source = "Clang Format";
@@ -180,14 +180,15 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 
 				;
 
-			compileDBTask.group = vscode.TaskGroup.Test;
+			compileDBTask.group = vscode.TaskGroup.Build;
 			compileDBTask.runOptions.reevaluateOnRerun = true;
 			compileDBTask.presentationOptions.clear = true;
-			compileDBTask.source = "Clang Format";
+			compileDBTask.source = "Compile Commands";
 
 			return [resmokeTask, clangFormatTask, compileDBTask];
 		},
-		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken) {
+		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken)  : vscode.Task {
+			console.log("Resolving: " + _task.name);
 			return _task;
 		}
 	});
@@ -209,8 +210,8 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			collection.delete(vscode.Uri.file(testFile));
 		}
 	});
-	vscode.tasks.onDidEndTaskProcess((a) => {
-		console.log('onDidStartTaskProcess ' + a.execution.task.name);
+	vscode.tasks.onDidEndTask((a) => {
+		console.log('mongodev - onDidEndTask ' + a.execution.task.name);
 
 		if (a.execution.task.name === "Resmoke") {
 			let e = a.execution.task.execution;
@@ -346,6 +347,7 @@ function registerCodeLensTasks(context: vscode.ExtensionContext) {
 
 function registerCodeLensProvider() {
 
+	console.log("mongodev - Registering Code Lens");
 	const codelensProvider = new CodelensProvider();
 
 	vscode.languages.registerCodeLensProvider("cpp", codelensProvider);
@@ -373,10 +375,12 @@ function loadNinjaCache(): Thenable<Map<String, String>> {
 			if (vscode.workspace.workspaceFolders) {
 				folder = vscode.workspace.workspaceFolders[0];
 
+				// TODO - debug if this makes a proper full path
 				ninjaFile = path.join(folder.name, ninjaFile);
 			}
 		}
 
+		// TODO - test for file exists and warn user
 		console.log("mongodev - Loading Ninja file: " + ninjaFile);
 
 		const parse_ninja = new RegExp(/^build \+([\w\.]+):\s+EXEC\s+([\w\/\\\.]+)/);
