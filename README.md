@@ -42,9 +42,14 @@ If you want to install it directly on a remote development side
   - https://github.com/aprilandjan/vscode-node-debug-process-picker
   - https://github.com/golang/vscode-go/blob/30b086f47878f2fcfa8d68d79db94ab6397a81c6/src/pickProcess.ts#L66
 - Add mrlog bootstrapping - see https://github.com/rust-analyzer/rust-analyzer/blob/20a911f3cc2beb0409ab71cc1560648374745f7f/editors/code/src/main.ts#L160
-- Add jump to nearest SConscript
-
-
+- Add jump to nearest SConscript - see https://github.com/clangd/vscode-clangd/blob/master/src/switch-source-header.ts
+- Colorize unittest outpu nicely
+- Add unit tests
+-- warn users about missing compile_commands.json
+- add support for running in virtual env
+- on unknown unit test binary, tell user to check config file location
+- make my own LSP for IDL - see https://docs.rs/lsp-server/0.5.2/lsp_server/
+- run single mongodb file? - make just use mongodb extension? or simple task?
 ## KeyBindings
 
 Since it does not install any keybindings, you may want to install some.

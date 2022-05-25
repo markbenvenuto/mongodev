@@ -50,6 +50,9 @@ def get_suite(file_name):
         camel_to_snake(suite)
 
         suite = suite.replace("encryptdb", "ese")
+        # suite = suite.replace("fle2", "cwrwc_passthrough")
+        # suite = suite.replace("fle2", "fle2_sharding")
+        # suite = suite.replace("fle2", "cwrwc_wc_majority_passthrough")
 
         return '--suite=%s %s' %(suite, file_name)
 
@@ -67,6 +70,7 @@ def get_suite(file_name):
         suite = camel_to_snake(suite)
 
         suite = suite.replace("free_mon", "free_monitoring")
+        suite = suite.replace("fle2", "fle2_sharding")
 
         # if suite not in ["auth", "no_passthrough"]:
         #     suite += "_auth"

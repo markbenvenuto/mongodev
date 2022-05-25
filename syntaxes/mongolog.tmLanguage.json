@@ -7,6 +7,10 @@
         "name" : "comment log.process"
       },
       {
+        "match" : "j\\d:[a-z]:[a-z]+",
+        "name" : "comment log.process"
+      },
+      {
         "match" : "\"s\":\"W\"",
         "name" : "markup.deleted log.warning"
       },
@@ -40,7 +44,7 @@
       },
       {
         "match" : "\"c\":\"(\\w+)\"",
-        "captures" : { 
+        "captures" : {
           "1" : { "name" : "comment log.component" }
         }
       }

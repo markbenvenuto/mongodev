@@ -5,7 +5,6 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import * as stream from 'stream';
 import { debug } from 'console';
 
 // this method is called when your extension is activated
@@ -69,6 +68,8 @@ let errorMatchers: Array<[RegExp, string]> = [
 	[/mongo program was not running at.*/, "Mongo Program had bad exit"],
 	[/Invalid access.*/, "Mongo Program crashed"],
 	[/Got signal.*/, "Mongo Program got fatal signal"],
+	[/Got signal.*/, "Mongo Program got fatal signal"],
+	[/ERROR: AddressSanitizer.*/, "Address Sanitizer failure"],
 ];
 
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): number {
@@ -125,11 +126,31 @@ function wrapWithMrlogFile(cmd: string, args: string, testFile: string) {
 	return `${mrlog} -t -o ${testFile} -e ${cmd} -- ${args}`;
 }
 
+function findMongoDBRoot() {
+	let mongoRoot = "";
+
+	//console.log(`Checking for scons files in workspace folders`);
+	if (vscode.workspace.workspaceFolders != undefined) {
+		for (let folder of vscode.workspace.workspaceFolders) {
+			const sconsFile = path.join(folder.uri.fsPath, "SConstruct");
+			// console.log(`Checking for scons file ${sconsFile}`)
+			if (fs.existsSync(sconsFile)) {
+				mongoRoot = folder.uri.fsPath;
+			}
+		}
+	}
+
+	return mongoRoot;
+}
+
 function registerTaskProviderAndListeners(context: vscode.ExtensionContext, collection: vscode.DiagnosticCollection) {
 
 	let type = "mongodev";
-	let testFile = path.join(vscode.workspace.rootPath!, `test1.log`);
-	let cwd = vscode.workspace.rootPath;
+
+	let mongoRoot = findMongoDBRoot();
+
+	let testFile = path.join(mongoRoot, `test1.log`);
+	let cwd = mongoRoot;
 	// TODO - add support for virtual env?
 	// use getConfiguration.Update();
 	// Note: There is no way to get the ${relativeFile} value from the task execution
@@ -138,17 +159,17 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 	let python3 = vscode.workspace.getConfiguration("mongodev").get("python3") as string;
 	// let cmd = `${python3} ${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile}) 2>&1 | tee ` + testFile;
 	// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
-	let cmd = wrapWithMrlogFile("/bin/sh", `${extensionPath}/python/run_resmoke.sh ${python3} ${vscode.workspace.rootPath}/buildscripts/resmoke.py \${file}`, testFile);
+	let cmd = wrapWithMrlogFile("/bin/sh", `${extensionPath}/python/run_resmoke.sh ${python3} ${mongoRoot}/buildscripts/resmoke.py \${file}`, testFile);
 
 	// TODO - make async
-	if (!fs.existsSync(path.join(vscode.workspace.rootPath!, "SConstruct"))) {
+	if (mongoRoot == "") {
 		console.log("Could not find SConstruct, falling back to extension test mode");
 		cmd = "python3 /Users/mark/mongo/buildscripts/resmoke.py jstests/ssl/test1.js 2>&1 | tee " + testFile;
 		cwd = "/Users/mark/mongo";
 	}
 
 	vscode.tasks.registerTaskProvider(type, {
-		provideTasks(token?: vscode.CancellationToken) : vscode.Task[] {
+		provideTasks(token?: vscode.CancellationToken): vscode.Task[] {
 			let execution = new vscode.ShellExecution(cmd, {
 				cwd: cwd,
 			});
@@ -164,7 +185,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			let clangFormatTask =
 				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
 					"MyClangFormat", "mongodev", new vscode.ShellExecution(
-						python3 + " ${workspaceFolder}/buildscripts/clang_format.py format-my", {cwd:cwd}))
+						`${python3} ${mongoRoot}/buildscripts/clang_format.py format-my`, { cwd: cwd }))
 
 				;
 
@@ -176,7 +197,7 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			let compileDBTask =
 				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
 					"Compile_Commands.json", "mongodev", new vscode.ShellExecution(
-						python3 + "  buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources", {cwd:cwd}))
+						`${python3} ${mongoRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources`, { cwd: cwd }))
 
 				;
 
@@ -185,9 +206,23 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 			compileDBTask.presentationOptions.clear = true;
 			compileDBTask.source = "Compile Commands";
 
-			return [resmokeTask, clangFormatTask, compileDBTask];
+
+			let featureFlagTask =
+				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+					"Generate All Feature Flag File", "mongodev", new vscode.ShellExecution(
+						`${python3} ${mongoRoot}/buildscripts/idl/gen_all_feature_flag_list.py --import-dir src --import-dir src/mongo/db/modules/enterprise/src`, { cwd: cwd }))
+
+				;
+
+			featureFlagTask.group = vscode.TaskGroup.Build;
+			featureFlagTask.runOptions.reevaluateOnRerun = true;
+			featureFlagTask.presentationOptions.clear = true;
+			featureFlagTask.source = "Generate All Feature Flag File";
+
+
+			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask];
 		},
-		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken)  : vscode.Task {
+		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken): vscode.Task {
 			console.log("Resolving: " + _task.name);
 			return _task;
 		}
@@ -223,9 +258,9 @@ function registerTaskProviderAndListeners(context: vscode.ExtensionContext, coll
 					return vscode.window.showTextDocument(doc).then(() => {
 						// Update the diagnostics now that we done with the task
 						let first_line = updateDiagnostics(doc, collection);
-						console.log("updage diags");
+						console.log("update diagnostics for mongodb test log file: " + testFile);
 
-						// Scroll the hight higlighted - 5 lines
+						// Scroll the hight highlighted - 5 lines
 						const scroll_context = vscode.workspace.getConfiguration("mongodev").get("testScrollback") as number;
 						first_line = first_line > scroll_context ? first_line - scroll_context : first_line;
 						return vscode.commands.executeCommand('revealLine', { lineNumber: first_line, at: 'top' });
@@ -276,6 +311,8 @@ async function superrun(test_executable: string, test_suite: string, test_name: 
 async function debugUnitTest(test_executable: string, test_suite: string, test_name: string) {
 	// The code you place here will be executed every time your command is executed
 
+	let mongoRoot = findMongoDBRoot();
+
 	console.log("mongodev - debug args - " + test_executable + " -- " + test_suite + " -- " + test_name);
 
 	// Find a debugger to use
@@ -297,12 +334,12 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 		type: "lldb",
 		request: "launch",
 		name: "Launch unittest",
-		program: "${workspaceRoot}/" + test_executable,
+		program: path.join(mongoRoot, test_executable),
 		args: ["--suite", test_suite, "--filter", test_name],
-		cwd: "${workspaceRoot}",
+		cwd: mongoRoot,
 		initCommands: [
-			"command script import ${workspaceRoot}/buildscripts/lldb/lldb_printers.py",
-			"command script import ${workspaceRoot}/buildscripts/lldb/lldb_commands.py"
+			`command script import ${mongoRoot}/buildscripts/lldb/lldb_printers.py`,
+			`command script import ${mongoRoot}/buildscripts/lldb/lldb_commands.py`
 		]
 	};
 
@@ -312,12 +349,12 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 			type: "lldb-vscode",
 			request: "launch",
 			name: "Launch unittest",
-			program: "${workspaceRoot}/" + test_executable,
+			program: path.join(mongoRoot, test_executable),
 			args: ["--suite", test_suite, "--filter", test_name],
-			cwd: "${workspaceRoot}",
+			cwd: mongoRoot,
 			initCommands: [
-				"command script import ${workspaceRoot}/buildscripts/lldb/lldb_printers.py",
-				"command script import ${workspaceRoot}/buildscripts/lldb/lldb_commands.py"
+				`command script import ${mongoRoot}/buildscripts/lldb/lldb_printers.py`,
+				`command script import ${mongoRoot}/buildscripts/lldb/lldb_commands.py`
 			]
 		};
 	}
@@ -383,9 +420,12 @@ function loadNinjaCache(): Thenable<Map<String, String>> {
 		// TODO - test for file exists and warn user
 		console.log("mongodev - Loading Ninja file: " + ninjaFile);
 
-		const parse_ninja = new RegExp(/^build \+([\w\.]+):\s+EXEC\s+([\w\/\\\.]+)/);
+		const parse_ninja_exec = new RegExp(/^build \+([\w\.-]+):\s+EXEC\s+([\w\/\\\.]+)/);
+		const parse_ninja_phony = new RegExp(/^build \+([\w\.-]+):\s+phony\s+\+([\w\/\\\.-]+)/);
 
-		let mapping = new Map<String, String>();
+		let mapping_exec = new Map<String, String>();
+		let mapping_phony = new Map<String, String>();
+
 		// create instance of readline
 		// each instance is associated with single input stream
 		let rl = readline.createInterface({
@@ -425,12 +465,20 @@ function loadNinjaCache(): Thenable<Map<String, String>> {
 			if (line_complete) {
 				line_complete = false;
 				buffered_line = buffered_line.replace("$", "");
-				let m = parse_ninja.exec(buffered_line);
+				let m = parse_ninja_exec.exec(buffered_line);
 				if (m != null) {
 					let test_name_file = m[1];
 					let test_name_exec = m[2];
 					// console.log(`${test_name_exec} -- ${test_name_file}`);
-					mapping.set(test_name_file, test_name_exec)
+					mapping_exec.set(test_name_file, test_name_exec)
+				} else {
+					m = parse_ninja_phony.exec(buffered_line);
+					if (m != null) {
+						let test_name_file = m[1];
+						let test_name_exec = m[2];
+						// console.log(`${test_name_exec} -- ${test_name_file}`);
+						mapping_phony.set(test_name_file, test_name_exec)
+					}
 				}
 			}
 		});
@@ -438,7 +486,15 @@ function loadNinjaCache(): Thenable<Map<String, String>> {
 		// end
 		rl.on('close', function () {
 			// console.log('Total lines : ' + line_no);
-			resolve(mapping);
+			let mapping_flat = new Map<String, String>();
+
+    mapping_phony.forEach( (value, key) => {
+        // console.log("Foo:"  + value);
+        mapping_flat.set(key, mapping_exec.get(value)?? "unknown" );
+    });
+
+
+			resolve(mapping_flat);
 		});
 	});
 }
@@ -503,6 +559,17 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 				if (range) {
 					const test_executable_key = path.basename(document.fileName, path.extname(document.fileName));
 					const test_executable: String = this.ninja_cache.get(test_executable_key) || "unknown_test_executable";
+					if (test_executable == "unknown_test_executable") {
+						console.log(`Could not find test executable: ${this.ninja_cache.size} -- ${test_executable_key}`);
+
+						// let jsonStr= "";
+						// this.ninja_cache.forEach((value, key) => {
+						// 	jsonStr += `${key}: ${value}, `;
+						// });
+						// console.log(jsonStr);
+
+						// console.log(this.ninja_cache.
+					}
 
 					const runTestCmd = {
 						title: "▶\u{fe0e} Run Test",
@@ -601,7 +668,7 @@ class DocumentLinkProvider implements vscode.DocumentLinkProvider {
 						range,
 						// vscode.Uri.file(path.join(root_dir || ".", file_name) + `:${line_number}`),
 						vscode.Uri.file(full_file_path).with({ fragment: `${line_number}:${col_number}` }),
-						)
+					)
 				);
 			}
 		}

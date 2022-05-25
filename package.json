@@ -54,7 +54,7 @@
 				"mongodev.debugEngine": {
 					"type": "string",
 					"default": "auto",
-					"description": "Name of debug engine to use, in auto mode searches ["
+					"description": "Name of debug engine to use, in auto mode searches [llvm.lldb-vscode,vadimcn.vscode-lldb]"
 				}
 			}
 		},
