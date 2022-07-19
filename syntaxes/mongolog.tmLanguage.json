@@ -3,11 +3,7 @@
     "patterns":
     [
       {
-        "match" : "[csdb]\\d\\d\\d\\d\\d",
-        "name" : "comment log.process"
-      },
-      {
-        "match" : "j\\d:[a-z]:[a-z]+",
+        "match" : "(\\[|)(j\\d:[a-z]\\d?(:[a-z]+)?)",
         "name" : "comment log.process"
       },
       {
@@ -39,13 +35,27 @@
         "name" : "string.regexp, emphasis log.badvalue"
       },
       {
-        "match" : "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}[-\\+]\\d{4}",
+        "match" : "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}-\\d{2}:\\d{2}",
         "name" : "comment log.date"
       },
       {
         "match" : "\"c\":\"(\\w+)\"",
         "captures" : {
           "1" : { "name" : "comment log.component" }
+        }
+      },
+
+      {
+        "match" : "\"ctx\":\"(\\w+)\"",
+        "captures" : {
+          "1" : { "name" : "storage.type log.ctx" }
+        }
+      },
+
+      {
+        "match" : "\"(attr)\"",
+        "captures" : {
+          "1" : { "name" : "storage.type log.attr" }
         }
       }
     ],

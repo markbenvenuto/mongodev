@@ -5,45 +5,64 @@
 	"description": "MongoDB Development Helper",
 	"version": "0.0.1",
 	"engines": {
-		"vscode": "^1.43.0"
+		"vscode": "^1.56.0"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url" : "https://github.com/markbenvenuto/mongodev"
 	},
 	"categories": [
 		"Other"
 	],
-	"extensionKind": ["ui", "workspace"],
+	"extensionKind": [
+		"workspace"
+	],
 	"activationEvents": [
 		"onCommand:mongodev.helloWorld",
 		"onCommand:workbench.action.tasks.runTask",
-		"onLanguage:mongolog",
-		"workspaceContains:SConstruct"
+		"workspaceContains:SConstruct",
+		"workspaceContains:build.py"
 	],
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": "false",
+			"description": ""
+		}
+	},
 	"main": "./out/extension.js",
 	"contributes": {
 		"configuration": {
+			"title": "MongoDB Development",
 			"properties": {
 				"mongodev.enableCodeLens": {
 					"type": "boolean",
 					"default": true,
 					"description": "Enable Code Lens for Running & Debugging MongoDB C++ Unit Tests"
 				},
-				"mongodev.python3": {
+				"mongodev.programs.python3": {
 					"type": "string",
 					"default": "python3",
 					"description": "Path to python interpreter, i.e. /usr/bin/python3"
 				},
-				"mongodev.mrlog": {
+				"mongodev.programs.mrlog": {
 					"type": "string",
 					"default": "mrlog",
 					"description": "Path to mrlog, i.e. /usr/bin/mrlog"
 				},
-				"mongodev.ninja": {
+				"mongodev.programs.mpf": {
+					"type": "string",
+					"default": "mpf",
+					"description": "Path to mpf, i.e. /usr/bin/mpf"
+				},
+				"mongodev.programs.ninja": {
 					"type": "string",
 					"default": "ninja",
 					"description": "Path to ninja, i.e. /usr/bin/ninja"
 				},
 				"mongodev.ninjaFile": {
 					"type": "string",
-					"default": "linux-clang-local.ninja",
+					"default": "build.ninja",
 					"description": "Name of ninja file to use"
 				},
 				"mongodev.testScrollback": {
@@ -54,7 +73,7 @@
 				"mongodev.debugEngine": {
 					"type": "string",
 					"default": "auto",
-					"description": "Name of debug engine to use, in auto mode searches [llvm.lldb-vscode,vadimcn.vscode-lldb]"
+					"description": "Name of debug engine to use, in auto mode searches [llvm.lldb-vscode, vadimcn.vscode-lldb]"
 				}
 			}
 		},
@@ -64,22 +83,22 @@
 				"title": "MongoDev Hello World"
 			},
 			{
-				"command": "mongodev.superrun",
-				"title": "MongoDev SuperRun"
+				"command": "mongodev.runUnitTest",
+				"title": "MongoDev Run UnitTest",
+				"when" : "editorLangId = cpp"
 			},
 			{
 				"command": "mongodev.debugUnitTest",
-				"title": "MongoDev Debug UnitTest"
+				"title": "MongoDev Debug UnitTest",
+				"when" : "editorLangId = cpp"
 			},
 			{
 				"title": "Enable MongoDev CodeLens",
-				"command": "mongodev.enableCodeLens",
-				"category": "MongoDev Sample"
+				"command": "mongodev.enableCodeLens"
 			},
 			{
 				"title": "Disable MongoDev Codelens",
-				"command": "mongodev.disableCodeLens",
-				"category": "MongoDev Sample"
+				"command": "mongodev.disableCodeLens"
 			}
 		],
 		"languages": [
@@ -102,6 +121,84 @@
 				"path": "./syntaxes/mongolog.tmLanguage.json"
 			}
 		],
+		"problemMatchers": [
+				{
+					"name" : "mongodev_msvc",
+					"owner" : "cpp",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}"
+					],
+					"pattern": {
+						"regexp": "^(.*)\\((\\d+)\\):\\s+(warning|error) ([C|W]\\d+):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"severity": 3,
+						"code": 4,
+						"message": 5
+					}
+				},
+				{
+					"name" : "mongodev_msvc2",
+					"owner" : "cpp",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}"
+					],
+					"pattern": {
+						"regexp": "^(.*)\\((\\d+),(\\d+)\\):\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"severity": 4,
+						"message": 5
+					}
+				},
+				{
+					"name" : "mongodev_gcc",
+					"owner" : "cpp",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"severity": 4,
+						"message": 5
+					}
+				},
+				{
+					"name" : "mongodev_unittest",
+					"owner" : "external",
+					"fileLocation": [
+						"relative",
+						"${workspaceFolder}"
+					],
+					"pattern": {
+						"regexp": ".*(Expected .*)@(.*):(\\d+).*",
+						"file": 2,
+						"line": 3,
+						"message": 1
+					}
+				},
+				{
+					"name": "mongodev_errorcodes",
+                    "owner" : "external",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": ".(src\/[\\w\/\\.]+):(\\d+):(\\d+)",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3
+                    }
+                }
+		],
 		"taskDefinitions": [
 			{
 				"type": "mongodev"
@@ -114,6 +211,7 @@
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
+		"compile2": "node ./build.js --production",
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
@@ -121,12 +219,13 @@
 		"@types/mocha": "^7.0.1",
 		"@types/node": "^12.11.7",
 		"@types/vscode": "^1.43.0",
+		"@vscode/test-electron": "^1.6.1",
+		"esbuild": "^0.13.15",
 		"eslint": "^6.8.0",
-		"@typescript-eslint/parser": "^2.18.0",
-		"@typescript-eslint/eslint-plugin": "^2.18.0",
+		"@typescript-eslint/parser": "^4.15.2",
+		"@typescript-eslint/eslint-plugin": "^4.15.2",
 		"glob": "^7.1.6",
 		"mocha": "^7.0.1",
-		"typescript": "^3.7.5",
-		"vscode-test": "^1.3.0"
+		"typescript": "^4.2.2"
 	}
 }

@@ -1,5 +1,5 @@
 #!/bin/sh
-echo Running Test Script
+echo run_resmoke.sh: Running Test Script
 
 PYTHON=$1
 RESMOKE=$2
