@@ -26,7 +26,7 @@
 	],
 	"capabilities": {
 		"untrustedWorkspaces": {
-			"supported": "false",
+			"supported": false,
 			"description": ""
 		}
 	},
