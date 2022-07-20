@@ -38,6 +38,7 @@ Cleanup
 - errorcodes.py integration?
 - slightly better build
 - SuperRun
+- SuperRun.sh?
 
 ## Roadmap/TODO
 SkunkWorks
@@ -56,7 +57,6 @@ Features
 - Speed up extension
   - see https://github.com/ipatalas/vscode-postfix-ts/blob/develop/package.json
   - https://jason-williams.co.uk/posts/speeding-up-vscode-extensions-in-2022/
-- SuperRun.sh?
 Welcome
 -- warn users about missing compile_commands.json
 - on unknown unit test binary, tell user to check config file location
@@ -85,7 +85,7 @@ Example:
         "key": "shift+cmd+v",
         "command": "workbench.action.tasks.runTask",
         "args" : "mongodev: Resmoke"
-`    }
+    }
 ```
 
 ## Extension Settings
