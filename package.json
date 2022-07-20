@@ -10,7 +10,7 @@
 	"license": "Apache-2.0",
 	"repository": {
 		"type": "git",
-		"url" : "https://github.com/markbenvenuto/mongodev"
+		"url": "https://github.com/markbenvenuto/mongodev"
 	},
 	"categories": [
 		"Other"
@@ -85,12 +85,12 @@
 			{
 				"command": "mongodev.runUnitTest",
 				"title": "MongoDev Run UnitTest",
-				"when" : "editorLangId = cpp"
+				"when": "editorLangId = cpp"
 			},
 			{
 				"command": "mongodev.debugUnitTest",
 				"title": "MongoDev Debug UnitTest",
-				"when" : "editorLangId = cpp"
+				"when": "editorLangId = cpp"
 			},
 			{
 				"title": "Enable MongoDev CodeLens",
@@ -122,86 +122,95 @@
 			}
 		],
 		"problemMatchers": [
-				{
-					"name" : "mongodev_msvc",
-					"owner" : "cpp",
-					"fileLocation": [
-						"relative",
-						"${workspaceFolder}"
-					],
-					"pattern": {
-						"regexp": "^(.*)\\((\\d+)\\):\\s+(warning|error) ([C|W]\\d+):\\s+(.*)$",
-						"file": 1,
-						"line": 2,
-						"severity": 3,
-						"code": 4,
-						"message": 5
-					}
-				},
-				{
-					"name" : "mongodev_msvc2",
-					"owner" : "cpp",
-					"fileLocation": [
-						"relative",
-						"${workspaceFolder}"
-					],
-					"pattern": {
-						"regexp": "^(.*)\\((\\d+),(\\d+)\\):\\s+(warning|error):\\s+(.*)$",
-						"file": 1,
-						"line": 2,
-						"column": 3,
-						"severity": 4,
-						"message": 5
-					}
-				},
-				{
-					"name" : "mongodev_gcc",
-					"owner" : "cpp",
-					"fileLocation": [
-						"relative",
-						"${workspaceFolder}"
-					],
-					"pattern": {
-						"regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-						"file": 1,
-						"line": 2,
-						"column": 3,
-						"severity": 4,
-						"message": 5
-					}
-				},
-				{
-					"name" : "mongodev_unittest",
-					"owner" : "external",
-					"fileLocation": [
-						"relative",
-						"${workspaceFolder}"
-					],
-					"pattern": {
-						"regexp": ".*(Expected .*)@(.*):(\\d+).*",
-						"file": 2,
-						"line": 3,
-						"message": 1
-					}
-				},
-				{
-					"name": "mongodev_errorcodes",
-                    "owner" : "external",
-                    "fileLocation": [
-                        "relative",
-                        "${workspaceFolder}"
-                    ],
-                    "pattern": {
-                        "regexp": ".(src\/[\\w\/\\.]+):(\\d+):(\\d+)",
-                        "file": 1,
-                        "line": 2,
-                        "column": 3
-                    }
-                }
+			{
+				"name": "mongodev_msvc",
+				"owner": "cpp",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": {
+					"regexp": "^(.*)\\((\\d+)\\):\\s+(warning|error) ([C|W]\\d+):\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"severity": 3,
+					"code": 4,
+					"message": 5
+				}
+			},
+			{
+				"name": "mongodev_msvc2",
+				"owner": "cpp",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": {
+					"regexp": "^(.*)\\((\\d+),(\\d+)\\):\\s+(warning|error):\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			},
+			{
+				"name": "mongodev_gcc",
+				"owner": "cpp",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": {
+					"regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			},
+			{
+				"name": "mongodev_unittest",
+				"owner": "external",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": {
+					"regexp": ".*(Expected .*)@(.*):(\\d+).*",
+					"file": 2,
+					"line": 3,
+					"message": 1
+				}
+			},
+			{
+				"name": "mongodev_errorcodes",
+				"owner": "external",
+				"fileLocation": [
+					"relative",
+					"${workspaceFolder}"
+				],
+				"pattern": {
+					"regexp": ".(src\/[\\w\/\\.]+):(\\d+):(\\d+)",
+					"file": 1,
+					"line": 2,
+					"column": 3
+				}
+			}
 		],
 		"taskDefinitions": [
 			{
-				"type": "mongodev"
+				"type": "mongodev",
+				"required": [
+					"script"
+				],
+				"properties": {
+					"script": {
+						"type": "string",
+						"description": "%taskdef.script%"
+					}
+				}
 			}
 		]
 	},

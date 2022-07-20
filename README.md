@@ -85,7 +85,7 @@ Example:
         "key": "shift+cmd+v",
         "command": "workbench.action.tasks.runTask",
         "args" : "mongodev: Resmoke"
-    }
+`    }
 ```
 
 ## Extension Settings

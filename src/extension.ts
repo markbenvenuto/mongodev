@@ -251,15 +251,25 @@ function getCommandForTask(taskName: string) {
 	}
 }
 
+/**
+ * IMongoTaskDefinition exists so that all the tasks we generate have unique _ids. If they are not unique, re-running recently run tasks will have undefined behavior.
+ * 
+ * The _id for a task is generated based on "extension id, task.type, required definition properties"
+ * 
+ * See https://github.com/microsoft/vscode/blob/e0a65a97d4f349cf11a7cae804a5553ccb412528/src/vs/workbench/contrib/tasks/common/tasks.ts#L1219
+ */
+export interface IMongoTaskDefinition extends vscode.TaskDefinition {
+	script: string;
+}
+
 function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollection) {
 
 	const type = "mongodev";
 
-
 	vscode.tasks.registerTaskProvider(type, {
 		provideTasks(token?: vscode.CancellationToken): vscode.Task[] {
 			let resmokeTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type , script : "resmoke1"}, vscode.TaskScope.Workspace,
 					TASK_RESMOKE, "mongodev", getCommandForTask(TASK_RESMOKE));
 
 			resmokeTask.group = vscode.TaskGroup.Test;
@@ -267,7 +277,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			resmokeTask.presentationOptions.clear = true;
 
 			let clangFormatTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type,script : "clangformat1"}, vscode.TaskScope.Workspace,
 					TASK_CLANG_FORMAT, "mongodev", getCommandForTask(TASK_CLANG_FORMAT));
 
 			clangFormatTask.group = vscode.TaskGroup.Build;
@@ -275,7 +285,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			clangFormatTask.presentationOptions.clear = true;
 
 			let compileDBTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type,script : "compiledb1" }, vscode.TaskScope.Workspace,
 					TASK_COMPILE_COMMANDS, "mongodev",
 					getCommandForTask(TASK_COMPILE_COMMANDS));
 
@@ -284,7 +294,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			compileDBTask.presentationOptions.clear = true;
 
 			let featureFlagTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type, script : "featureflag1" }, vscode.TaskScope.Workspace,
 					TASK_GENERATE_FEATURE_FLAGS, "mongodev", getCommandForTask(TASK_GENERATE_FEATURE_FLAGS));
 
 			featureFlagTask.group = vscode.TaskGroup.Build;
@@ -292,7 +302,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			featureFlagTask.presentationOptions.clear = true;
 
 			let checkErrorCodesTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type , script : "errorcodes1"}, vscode.TaskScope.Workspace,
 					TASK_CHECK_ERRORCODES, "mongodev", getCommandForTask(TASK_CHECK_ERRORCODES));
 
 			checkErrorCodesTask.group = vscode.TaskGroup.Build;
@@ -301,7 +311,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			checkErrorCodesTask.problemMatchers = ["mongodev_errorcodes"];
 
 			let superRunTask =
-				new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type, script : "superrun1" }, vscode.TaskScope.Workspace,
 					TASK_SUPER_RUN, "mongodev", getCommandForTask(TASK_SUPER_RUN));
 			superRunTask.group = vscode.TaskGroup.Build;
 			superRunTask.runOptions.reevaluateOnRerun = true;
@@ -321,19 +331,20 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 	// Trim the "mongodev:  prefix that vscode adds when rerunning a recent task
 	taskName = taskName.replace("mongodev: ", "");
 
-	let commonTask =
-	new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
-		taskName, "mongodev",
-		getCommandForTask(taskName));
+// 	let commonTask =
+// 	new vscode.Task({ type: type }, vscode.TaskScope.Workspace,
+// 		taskName, "mongodev",
+// 		getCommandForTask(taskName));
 
-commonTask.group = vscode.TaskGroup.Build;
-commonTask.runOptions.reevaluateOnRerun = true;
-commonTask.presentationOptions.clear = true;
+// commonTask.group = vscode.TaskGroup.Build;
+// commonTask.runOptions.reevaluateOnRerun = true;
+// commonTask.presentationOptions.clear = true;
+// console.log(commonTask);
 
-			// _task.execution = getCommandForTask(taskName);
-			console.log(commonTask);
+			 _task.execution = getCommandForTask(taskName);
+			console.log(_task);
 
-			return commonTask;
+			return _task;
 		}
 	});
 
