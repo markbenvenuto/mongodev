@@ -1,12 +1,28 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 
+// There are two types of ninja file generators
+//
+// Original Ninja Module:
+// ----------------------
 // There are two types of lines to match
 // build +db_unittest_test-server_rewrite_test: EXEC build/install/bin/db_unittest_test
 // build +server_rewrite_test: phony +db_unittest_test-server_rewrite_test
 //
-const parse_ninja_exec = new RegExp(/^build \+([\w\.-]+):\s+EXEC\s+([\w\/\\\.]+)/);
-const parse_ninja_phony = new RegExp(/^build \+([\w\.-]+):\s+phony\s+\+([\w\/\\\.-]+)/);
+// New Ninja Module:
+// ----------------------
+//
+// build +db_unittest_test-fle_crud_test: CMD build/debug/install/bin/db_unittest_test | $
+// build +fle_crud_test: phony | +db_unittest_test-fle_crud_test || generated-sources
+
+// Original Module Parsing
+const orig_parse_ninja_exec = new RegExp(/^build \+([\w\.-]+):\s+EXEC\s+([\w\/\\\.]+)/);
+const orig_parse_ninja_phony = new RegExp(/^build \+([\w\.-]+):\s+phony\s+\+([\w\/\\\.-]+)/);
+
+// New Module Parsing
+const new_parse_ninja_cmd = new RegExp(/^build \+([\w\.-]+):\s+CMD\s+([\w\/\\\.]+)/);
+const new_parse_ninja_phony = new RegExp(/^build \+([\w\.-]+):\s+phony\s+\|\s+\+([\w\.\-]+)/);
+
 
 export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>> {
 
@@ -40,6 +56,7 @@ export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>>
                 }
 
             }
+
             if (need_line) {
                 buffered_line += line;
                 if (line.endsWith("$")) {
@@ -50,23 +67,45 @@ export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>>
                 }
 
             }
+
             if (line_complete) {
                 line_complete = false;
                 buffered_line = buffered_line.replace("$", "");
-                let m = parse_ninja_exec.exec(buffered_line);
+
+                // Original Module parsing
+                let m = orig_parse_ninja_exec.exec(buffered_line);
                 if (m !== null) {
                     let test_name_file = m[1];
                     let test_name_exec = m[2];
                     // console.log(`${test_name_exec} -- ${test_name_file}`);
                     mapping_exec.set(test_name_file, test_name_exec);
-                } else {
-                    m = parse_ninja_phony.exec(buffered_line);
-                    if (m !== null) {
-                        let test_name_file = m[1];
-                        let test_name_exec = m[2];
-                        // console.log(`${test_name_exec} -- ${test_name_file}`);
-                        mapping_phony.set(test_name_file, test_name_exec);
-                    }
+                    return;
+                }
+
+                m = orig_parse_ninja_phony.exec(buffered_line);
+                if (m !== null) {
+                    let test_name_file = m[1];
+                    let test_name_exec = m[2];
+                    // console.log(`${test_name_exec} -- ${test_name_file}`);
+                    mapping_phony.set(test_name_file, test_name_exec);
+                }
+
+                // New Module parsing
+                m = new_parse_ninja_cmd.exec(buffered_line);
+                if (m !== null) {
+                    let test_name_file = m[1];
+                    let test_name_exec = m[2];
+                    // console.log(`${test_name_exec} -- ${test_name_file}`);
+                    mapping_exec.set(test_name_file, test_name_exec);
+                    return;
+                }
+
+                m = new_parse_ninja_phony.exec(buffered_line);
+                if (m !== null) {
+                    let test_name_file = m[1];
+                    let test_name_exec = m[2];
+                    // console.log(`${test_name_exec} -- ${test_name_file}`);
+                    mapping_phony.set(test_name_file, test_name_exec);
                 }
             }
         });

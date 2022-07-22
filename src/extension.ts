@@ -36,6 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// Display a message box to the user
 		vscode.window.showInformationMessage('Hello World!');
 	});
+	context.subscriptions.push(disposable);
 
 	mongodbRoot = findMongoDBRoot();
 	extensionContext = context;
@@ -52,11 +53,15 @@ export function activate(context: vscode.ExtensionContext) {
 
 	registerDocumentLinkProvider();
 
-	context.subscriptions.push(disposable);
+	registerDebugHelpers();
+
+	checkForMissingFiles();
+	// TODO - consider setTimeout() from nodejs?
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() { }
+
 
 function mlog(msg: string) {
 	console.log("mongodev: " + msg);
@@ -142,6 +147,12 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 	return 0;
 }
 
+function getPythonScriptsDir() {
+	const extensionPath = extensionContext.extensionPath;
+
+	return path.join(extensionPath, "python");
+}
+
 function wrapWithMrlog(cmd: string, args: string) {
 	const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG);
 
@@ -154,6 +165,13 @@ function wrapWithMrlogFile(cmd: string, args: string, testFile: string) {
 
 	return `${mrlog} -t -o ${testFile} -e ${cmd} -- ${args}`;
 }
+
+function wrapWithActivate(cmdWithArgs: string) {
+	const python_scripts_dir = getPythonScriptsDir();
+
+	return `/bin/sh ${python_scripts_dir}/run_virtualenv.sh ${cmdWithArgs}`;
+}
+
 
 function findMongoDBRootWorkspace() {
 	let mongodbRoot: vscode.WorkspaceFolder | undefined = undefined;
@@ -185,10 +203,12 @@ const TASK_COMPILE_COMMANDS = "Compile_Commands.json";
 const TASK_GENERATE_FEATURE_FLAGS = "Generate All Feature Flag File";
 const TASK_CHECK_ERRORCODES = "Check duplicate errorcodes";
 const TASK_SUPER_RUN = "Super Run";
+const TASK_INSTALL_PIP = "Install Pip";
+const TASK_GENERATE_DEBUG_BUILD_NINJA = "Generate Debug Build.ninja";
 
 function getCommandForTask(taskName: string) {
 	let cwd = mongodbRoot;
-	const extensionPath = extensionContext.extensionPath;
+	const python_scripts_dir = getPythonScriptsDir();
 
 	const python3 = vscode.workspace.getConfiguration("mongodev").get(CONFIG_PYTHON3) as string;
 
@@ -203,14 +223,7 @@ function getCommandForTask(taskName: string) {
 			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
 			const testFile = path.join(mongodbRoot, `test1.log`);
 
-			let cmd = wrapWithMrlogFile("/bin/sh", `${extensionPath}/python/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
-
-			// TODO - make async
-			if (mongodbRoot === "") {
-				mlog("Could not find SConstruct, falling back to extension test mode");
-				cmd = "python3 /Users/mark/mongo/buildscripts/resmoke.py jstests/ssl/test1.js 2>&1 | tee " + testFile;
-				cwd = "/Users/mark/mongo";
-			}
+			const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
 
 			return new vscode.ShellExecution(cmd, {
 				cwd: cwd,
@@ -223,26 +236,36 @@ function getCommandForTask(taskName: string) {
 		}
 
 		case TASK_COMPILE_COMMANDS: {
-			return new vscode.ShellExecution(
-				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources`, { cwd: cwd });
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources`), { cwd: cwd });
 		}
 
 		case TASK_GENERATE_FEATURE_FLAGS: {
-			return new vscode.ShellExecution(
-				`${python3} ${mongodbRoot}/buildscripts/idl/gen_all_feature_flag_list.py --import-dir src --import-dir src/mongo/db/modules/enterprise/src`, { cwd: cwd });
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python3} ${mongodbRoot}/buildscripts/idl/gen_all_feature_flag_list.py --import-dir src --import-dir src/mongo/db/modules/enterprise/src`), { cwd: cwd });
 		}
 
 		case TASK_CHECK_ERRORCODES: {
-			return new vscode.ShellExecution(
-				`${python3} ${mongodbRoot}/buildscripts/errorcodes.py`, { cwd: cwd });
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python3} ${mongodbRoot}/buildscripts/errorcodes.py`), { cwd: cwd });
 		}
 
 		case TASK_SUPER_RUN: {
 			const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG);
 			const ninjaFile = vscode.workspace.getConfiguration("mongodev").get(CONFIG_NINJA_FILE);
 
-			return new vscode.ShellExecution(
-				`/bin/sh ${extensionPath}/python/super_run.sh ${mrlog} ${ninjaFile} ` + "${relativeFile}", { cwd: cwd });
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python_scripts_dir}/super_run.sh ${mrlog} ${ninjaFile} ` + "${relativeFile}"), { cwd: cwd });
+		}
+
+		case TASK_INSTALL_PIP: {
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python3} -m pip install -r buildscripts//requirements.txt`), { cwd: cwd });
+		}
+
+		case TASK_GENERATE_DEBUG_BUILD_NINJA: {
+			return new vscode.ShellExecution(wrapWithActivate(
+				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars  --link-model=object --dbg=on --ninja --modules=enterprise --enable-free-mon=off ICECC=icecc CCACHE=ccache`), { cwd: cwd });
 		}
 
 		default: {
@@ -308,7 +331,8 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			checkErrorCodesTask.group = vscode.TaskGroup.Build;
 			checkErrorCodesTask.runOptions.reevaluateOnRerun = true;
 			checkErrorCodesTask.presentationOptions.clear = true;
-			checkErrorCodesTask.problemMatchers = ["mongodev_errorcodes"];
+			// checkErrorCodesTask.problemMatchers = ["$mongodev_errorcodes"];
+			// TODO - make error codes output in a format vscode can consume
 
 			let superRunTask =
 				new vscode.Task({ type: type, script: "superrun1" }, vscode.TaskScope.Workspace,
@@ -316,23 +340,39 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			superRunTask.group = vscode.TaskGroup.Build;
 			superRunTask.runOptions.reevaluateOnRerun = true;
 			superRunTask.presentationOptions.clear = true;
-			superRunTask.problemMatchers = ["mongodev_msvc", "mongodev_msvc2", "mongodev_gcc", "mongodev_unittest"];
+			superRunTask.problemMatchers = ["$mongodev_msvc", "$mongodev_msvc2", "$mongodev_gcc", "$mongodev_unittest"];
 
-			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask];
+
+			let installPipTask =
+				new vscode.Task({ type: type, script: "pip1" }, vscode.TaskScope.Workspace,
+				TASK_INSTALL_PIP, "mongodev", getCommandForTask(TASK_INSTALL_PIP));
+			installPipTask.group = vscode.TaskGroup.Build;
+			installPipTask.runOptions.reevaluateOnRerun = true;
+			installPipTask.presentationOptions.clear = true;
+
+
+			let generateNinjaTask =
+				new vscode.Task({ type: type, script: "debugNinja1" }, vscode.TaskScope.Workspace,
+				TASK_GENERATE_DEBUG_BUILD_NINJA, "mongodev", getCommandForTask(TASK_GENERATE_DEBUG_BUILD_NINJA));
+			generateNinjaTask.group = vscode.TaskGroup.Build;
+			generateNinjaTask.runOptions.reevaluateOnRerun = true;
+			generateNinjaTask.presentationOptions.clear = true;
+
+			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask, installPipTask, generateNinjaTask];
 		},
 		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken): vscode.Task {
 			mlog("Resolving Task: " + _task.name);
 			// When a user selects a task, it is fully filled out
 			// When a user re-runs the last task, then the execution is not set and has to be set
 			// See https://github.com/microsoft/vscode/blob/8feb40b9284c339e2d1b0a493641e603b7f84d3d/src/vs/workbench/contrib/tasks/browser/abstractTaskService.ts#L749
-			console.log(_task);
+			// console.log(_task);
 
 			let taskName = _task.name;
 			// Trim the "mongodev:  prefix that vscode adds when rerunning a recent task
 			taskName = taskName.replace("mongodev: ", "");
 
 			_task.execution = getCommandForTask(taskName);
-			console.log(_task);
+			// console.log(_task);
 
 			return _task;
 		}
@@ -341,7 +381,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 	const testFile = path.join(mongodbRoot, `test1.log`);
 
 	vscode.tasks.onDidStartTaskProcess((a) => {
-		if (a.execution.task.name.indexOf(TASK_RESMOKE) > 0) {
+		if (a.execution.task.name.indexOf(TASK_RESMOKE) >= 0) {
 			// Clear the diagnostics for the test log file
 			// since vs code will show an empty file once the tests start running
 			// so an empty file cannot have errors.
@@ -358,7 +398,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 		// "Resmoke"
 		// "mongodev: Resmoke"
 		// depend on how the task is run
-		if (a.execution.task.name.indexOf(TASK_RESMOKE) > 0) {
+		if (a.execution.task.name.indexOf(TASK_RESMOKE) >= 0) {
 			let e = a.execution.task.execution;
 			if (e !== undefined) {
 				//mlog('onDidStartTaskProcess ' + e!.commandLine);
@@ -601,8 +641,8 @@ export class CodelensProvider implements vscode.CodeLensProvider {
 						arguments: [test_executable, test_suite, test_name]
 					};
 
-					this.codeLenses.push(new vscode.CodeLens(range, runTestCmd)),
-						this.codeLenses.push(new vscode.CodeLens(range.with(range.start.with({ character: range.start.character + 1 })), debugCmd));
+					this.codeLenses.push(new vscode.CodeLens(range, runTestCmd));
+					this.codeLenses.push(new vscode.CodeLens(range.with(range.start.with({ character: range.start.character + 1 })), debugCmd));
 				}
 			}
 			return this.codeLenses;
@@ -684,4 +724,40 @@ class DocumentLinkProvider implements vscode.DocumentLinkProvider {
 function registerDocumentLinkProvider() {
 	vscode.languages.registerDocumentLinkProvider({ language: 'mongolog' }, new DocumentLinkProvider());
 
+}
+
+/**
+ * Shows a pick list using window.showQuickPick().
+ */
+export async function pickMongoProcess() {
+	//let i = 0;
+	const result = await vscode.window.showQuickPick(['eins', 'zwei', 'drei'], {
+		placeHolder: 'eins, zwei or drei',
+		//onDidSelectItem: item => vscode.window.showInformationMessage(`Focus ${++i}: ${item}`)
+	});
+	vscode.window.showInformationMessage(`Got: ${result}`);
+
+	// Commands are expected to return strings
+	return "3279435";
+}
+
+
+function registerDebugHelpers() {
+	let disposable2 = vscode.commands.registerCommand('mongodev.pickMongoProcess', pickMongoProcess);
+	extensionContext.subscriptions.push(disposable2);
+}
+
+
+// TODO - see https://github.com/microsoft/vscode/blob/3a8b1fe03ebbcf57fb9c50b161db91229e2fe04a/extensions/typescript-language-features/src/utils/largeProjectStatus.ts#L42
+// for how to create a button
+//
+function checkForMissingFiles() {
+
+	const compileCommands = path.join(mongodbRoot, `compile_commands.json`);
+
+	if(!fs.existsSync(compileCommands)) {
+		vscode.window.showWarningMessage("Could not find 'compile_commands.json' file. Generate one with 'Run Task'")
+	}
+
+	// TODO - add more warnings?
 }

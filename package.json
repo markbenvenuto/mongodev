@@ -93,6 +93,11 @@
 				"when": "editorLangId = cpp"
 			},
 			{
+				"command": "mongodev.pickMongoProcess",
+				"title": "MongoDev Pick Mongo Process",
+				"when": "editorLangId = cpp"
+			},
+			{
 				"title": "Enable MongoDev CodeLens",
 				"command": "mongodev.enableCodeLens"
 			},
@@ -178,24 +183,10 @@
 					"${workspaceFolder}"
 				],
 				"pattern": {
-					"regexp": ".*(Expected .*)@(.*):(\\d+).*",
+					"regexp": ".*(Expected .*)@(.*):(\\d+)$",
 					"file": 2,
 					"line": 3,
 					"message": 1
-				}
-			},
-			{
-				"name": "mongodev_errorcodes",
-				"owner": "external",
-				"fileLocation": [
-					"relative",
-					"${workspaceFolder}"
-				],
-				"pattern": {
-					"regexp": ".(src\/[\\w\/\\.]+):(\\d+):(\\d+)",
-					"file": 1,
-					"line": 2,
-					"column": 3
 				}
 			}
 		],
@@ -208,33 +199,98 @@
 				"properties": {
 					"script": {
 						"type": "string",
-						"description": "%taskdef.script%"
+						"description": "Internal name of task to uniquify mongodb tasks, do not change"
 					}
 				}
+			}
+		],
+		"debuggers": [
+			{
+				"type": "lldb-vscode",
+				"variables": {
+					"PickMongoProcess": "mongodev.pickMongoProcess"
+				}
+			}
+		],
+		"walkthroughs": [
+			{
+				"id": "sample",
+				"title": "MongoDev Walkthrough",
+				"description": "Introduction to MongoDB Development. Here are a series of steps to configure VSCode to work for well for you.",
+				"steps": [
+					{
+						"id": "pip install",
+						"title": "Pip Install Requirements",
+						"description": "Install the build requirements via pip by running 'Installing Pip Requirements' in 'Run Task'.\n[Run Task](command:workbench.action.tasks.runTask)",
+						"media": {
+							"image": "media/image.png",
+							"altText": "Empty image"
+						}
+					},
+					{
+						"id": "create_ninja_file",
+						"title": "Create Ninja File",
+						"description": "Generating a 'build.ninja` file to enable fast rebuilds by running 'Generate Debug Ninja File' in 'Run Task'.\n[Run Task](command:workbench.action.tasks.runTask)",
+						"media": {
+							"image": "media/image.png",
+							"altText": "Empty image"
+						}
+					},
+					{
+						"id": "install ClangD extension",
+						"title": "Install ClangD Extension",
+						"description": "Click here to install the ClangD Extension. This step will complete once it has been installed.\n[Here](command:workbench.extensions.installExtension?llvm-vs-code-extensions.vscode-clangd)",
+						"media": {
+							"image": "media/image.png",
+							"altText": "Empty image"
+						},
+						"completionEvents": [
+							"extensionInstalled:llvm-vs-code-extensions.vscode-clangd"
+						]
+					},
+					{
+						"id": "create_compile_commands",
+						"title": "Create Compile Commands.json",
+						"description": "Generating a 'compile_commands.json` file to enable clangd by running 'Generate Debug Ninja File' in 'Run Task'.\n[Run Task](command:workbench.action.tasks.runTask)",
+						"media": {
+							"image": "media/image.png",
+							"altText": "Empty image"
+						}
+					},
+					{
+						"id": "run_super_run",
+						"title": "Build with Super Run",
+						"description": "Super Run will either run a unit test or build the server depending on the current opened file by running 'Super Run' in 'Run Task'.\n[Run Task](command:workbench.action.tasks.runTask)",
+						"media": {
+							"image": "media/image.png",
+							"altText": "Empty image"
+						}
+					}
+				]
 			}
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -p ./",
+		"vscode:prepublish": "npm run compile --production",
+		"test-compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
-		"compile2": "node ./build.js --production",
+		"compile": "node ./build.js",
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
 		"@types/glob": "^7.1.1",
-		"@types/mocha": "^7.0.1",
-		"@types/node": "^12.11.7",
+		"@types/mocha": "^9.1.1",
+		"@types/node": "^18.0.6",
 		"@types/vscode": "^1.43.0",
-		"@vscode/test-electron": "^1.6.1",
-		"esbuild": "^0.13.15",
-		"eslint": "^6.8.0",
-		"@typescript-eslint/parser": "^4.15.2",
-		"@typescript-eslint/eslint-plugin": "^4.15.2",
-		"glob": "^7.1.6",
-		"mocha": "^7.0.1",
+		"@vscode/test-electron": "^2.1.5",
+		"esbuild": "^0.14.49",
+		"eslint": "^8.20.0",
+		"@typescript-eslint/parser": "^5.30.7",
+		"@typescript-eslint/eslint-plugin": "^5.30.7",
+		"glob": "^8.0.3",
+		"mocha": "^10.0.0",
 		"typescript": "^4.2.2"
 	}
 }

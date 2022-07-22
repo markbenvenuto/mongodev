@@ -8,3 +8,5 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
+python/lldb_printers_more.py
+vs_code_tips

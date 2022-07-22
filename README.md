@@ -39,28 +39,35 @@ Cleanup
 - slightly better build
 - SuperRun
 - SuperRun.sh?
+- Add problem matches for gcc/msvc/unit tests
+- Virtual Env support - Resmoke/Other scripts??
+- add support for running in virtual env
+- Package support files into bundle - done automatically by vsce
+- Todo - test with other ninja file generator
+Walkthrough
+- Create Python Virtual Environment - should be setup by "./evergreen host configure --project mongodb-mongo-master"
+- Python install requirements
+- Create Ninja file
+- Create Compile_Commands.json
 
 ## Roadmap/TODO
 SkunkWorks
 Testing
-- Todo - test with other ninja file generator
-- Virtual Env support - Resmoke/Other scripts??
 - Reload on config change?
-- Package support files into bundle
 Features
-- add support for running in virtual env
-- Add problem matches for gcc/msvc/unit tests
 - Mongo specific process picker
   - https://github.com/aprilandjan/vscode-node-debug-process-picker
   - https://github.com/golang/vscode-go/blob/30b086f47878f2fcfa8d68d79db94ab6397a81c6/src/pickProcess.ts#L66
 - Add mrlog bootstrapping - see https://github.com/rust-analyzer/rust-analyzer/blob/20a911f3cc2beb0409ab71cc1560648374745f7f/editors/code/src/main.ts#L160
-- Speed up extension
-  - see https://github.com/ipatalas/vscode-postfix-ts/blob/develop/package.json
-  - https://jason-williams.co.uk/posts/speeding-up-vscode-extensions-in-2022/
 Welcome
--- warn users about missing compile_commands.json
+- warn users about missing compile_commands.json
+- warn users about missing build.ninja
+- warn users about out of date compile_commands.json
+- add command to generate build.ninja
 - on unknown unit test binary, tell user to check config file location
 - Walkthrough?
+
+
 
 Future
 New Commands
@@ -74,6 +81,8 @@ Other?
 - make my own LSP for IDL - see https://docs.rs/lsp-server/0.5.2/lsp_server/
 - make my own LSP for ID error message to log line
 - run single mongodb file? - make just use mongodb extension? or simple task?
+Use Rust more?
+ https://jason-williams.co.uk/posts/speeding-up-vscode-extensions-in-2022/
 
 ## KeyBindings
 

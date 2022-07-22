@@ -12,20 +12,16 @@ FILE_NAME=$3
 
 BASE_COMMAND="ninja -f $NINJA_FILE  -j 200 -k 0"
 
-if [ -f venv/bin/activate ]; then
-    . venv/bin/activate
-fi
-
 if [[ "$FILE_NAME" =~ .*_test.*.cpp ]]; then
     TEST_NAME=$(echo $FILE_NAME | sed "s#.*\/\(.*\).cpp#\1#")
 
-    echo $MRLOG -c -e ninja -- -f $NINJA_FILE -j 200 -k 0 +$TEST_NAME
-    $MRLOG -c -e ninja -- -f $NINJA_FILE -j 200 -k 0 +$TEST_NAME
+    echo "$MRLOG" -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
+    $MRLOG -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
 
 elif [[ "$FILE_NAME" =~ .*.js ]]; then
-    ./mongo $FILE_NAME
+    ./mongo "$FILE_NAME"
 
 else
-    echo $BASE_COMMAND install-devcore
+    echo "$BASE_COMMAND" install-devcore
     $BASE_COMMAND install-devcore
 fi
