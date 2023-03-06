@@ -16,7 +16,7 @@ async function main(argv: string[]) {
     let x = await parseNinjaFile(ninjaFile);
 
     console.log(x);
-    console.log("Done loading ninja file2");
+    console.log("Done loading ninja file3");
 
 }
 

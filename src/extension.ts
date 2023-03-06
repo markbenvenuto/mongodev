@@ -549,13 +549,15 @@ function loadNinjaCache(): Thenable<Map<string, string>> {
 	let ninjaFile = vscode.workspace.getConfiguration("mongodev").get("ninjaFile") as string;
 	if (!path.isAbsolute(ninjaFile)) {
 
-		let folder: vscode.WorkspaceFolder | undefined;
-		if (vscode.workspace.workspaceFolders) {
-			folder = vscode.workspace.workspaceFolders[0];
+		ninjaFile = path.join(mongodbRoot, ninjaFile);
 
-			// TODO - debug if this makes a proper full path
-			ninjaFile = path.join(folder.name, ninjaFile);
-		}
+		// let folder: vscode.WorkspaceFolder | undefined;
+		// if (vscode.workspace.workspaceFolders) {
+		// 	folder = vscode.workspace.workspaceFolders[0];
+
+		// 	// TODO - debug if this makes a proper full path
+		// 	ninjaFile = path.join(mongodbRoot, ninjaFile);
+		// }
 	}
 
 	// TODO - test for file exists and warn user

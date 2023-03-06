@@ -54,7 +54,7 @@ def get_suite(file_name):
 
         suite = suite.replace("encryptdb", "ese")
         # suite = suite.replace("fle2", "cwrwc_passthrough")
-        # suite = suite.replace("fle2", "fle2_sharding")
+        suite = suite.replace("fle2", "fle2_sharding")
         # suite = suite.replace("fle2", "cwrwc_wc_majority_passthrough")
         # suite = suite.replace("fle2", "sharded_collections_jscore_passthrough")
 

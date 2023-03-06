@@ -70,6 +70,10 @@ Welcome
 
 
 Future
+MPF
+- auto download
+MRLOG
+- auto download
 New Commands
 - Add ability to run current selected test without codelens
 - Add ability to debug current selected test without codelens
@@ -83,6 +87,7 @@ Other?
 - run single mongodb file? - make just use mongodb extension? or simple task?
 Use Rust more?
  https://jason-williams.co.uk/posts/speeding-up-vscode-extensions-in-2022/
+LSP to support jump to test maybe?
 
 ## KeyBindings
 

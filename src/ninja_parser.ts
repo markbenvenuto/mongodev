@@ -50,6 +50,7 @@ export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>>
                 if (line.endsWith("$")) {
                     need_line = true;
                     line_complete = false;
+                    return;
                 } else {
                     need_line = false;
                     line_complete = true;
@@ -70,15 +71,33 @@ export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>>
 
             if (line_complete) {
                 line_complete = false;
-                buffered_line = buffered_line.replace("$", "");
 
+
+                buffered_line = buffered_line.replaceAll("$", "");
+                // if (buffered_line.indexOf("tracing") >= 0 ) {
+                //     console.log("FOO:" + buffered_line);
+                // }
                 // Original Module parsing
                 let m = orig_parse_ninja_exec.exec(buffered_line);
                 if (m !== null) {
+
                     let test_name_file = m[1];
                     let test_name_exec = m[2];
+                    // // console.log(`${test_name_exec} -- ${test_name_file}`);
+                    // if (buffered_line.indexOf("tracing") >= 0 ) {
+                    //     console.log("FOO2:" + buffered_line);
                     // console.log(`${test_name_exec} -- ${test_name_file}`);
+
+                    // }
+
                     mapping_exec.set(test_name_file, test_name_exec);
+                    if(! mapping_phony.has(test_name_file) ) {
+                        // Handle ungrouped unit tests
+                        // console.log("FOO3:" + buffered_line);
+
+                        mapping_phony.set(test_name_file, test_name_file);
+                    }
+
                     return;
                 }
 

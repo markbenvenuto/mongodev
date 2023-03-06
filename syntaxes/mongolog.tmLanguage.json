@@ -27,6 +27,10 @@
         "name" : "string.regexp, emphasis log.exception"
       },
       {
+        "match" : "Writing fatal message.*",
+        "name" : "string.regexp, emphasis log.exception"
+      },
+      {
         "match" : "An error occurred during the teardown of \\w+",
         "name" : "string.regexp, emphasis log.resmoke"
       },
