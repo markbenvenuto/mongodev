@@ -1,4 +1,5 @@
 'use strict';
+import { link } from 'fs';
 import { CommandOutputParser, runCommand } from './command_parser';
 
 /**
@@ -43,18 +44,25 @@ export class ProcessStartEvent {
 const resmoke_fixture_parser = new RegExp(/(?<program>mongo\w?) started on port (?<port>\d+) with pid (?<pid>\d+)/);
 const shell_fixture_parser = new RegExp(/shell: Started program( |","attr":){"pid":"(?<pid>\d+)","port":(?<port>-?\d+),"argv":\["(?<program>([\/\w]+))/);
 
-export type ResmokeProcessStartEventHandler = (event: ProcessStartEvent) => void
+export type ResmokeProcessStartEventHandler = (event: ProcessStartEvent) => void;
+export type LineHandler = (line: string) => void;
+
 
 class ResmokeParser implements CommandOutputParser {
 
     handler: ResmokeProcessStartEventHandler;
+    lineHandler: LineHandler;
 
-    constructor(handler: ResmokeProcessStartEventHandler) {
+    constructor(handler: ResmokeProcessStartEventHandler, lineHandler: LineHandler) {
         this.handler = handler;
+        this.lineHandler = lineHandler;
     }
 
     handleLine(line: string): void {
         // console.log("st", line);
+        // Echo all the lines out
+        this.lineHandler(line);
+
         if(!line.startsWith("[")) {
             return;
         }
@@ -100,8 +108,8 @@ class ResmokeParser implements CommandOutputParser {
 }
 
 
-export async function parseResmokeCommand(command : string, args : string[], callback: ResmokeProcessStartEventHandler ) : Promise<void> {
-    let rp = new ResmokeParser(callback);
+export async function parseResmokeCommand(command : string, args : string[], callback: ResmokeProcessStartEventHandler, lineHandler: LineHandler ) : Promise<void> {
+    let rp = new ResmokeParser(callback, lineHandler);
 
     let x = await runCommand(command, args, rp);
 
