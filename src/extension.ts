@@ -5,6 +5,8 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseNinjaFile } from './ninja_parser';
+import { mongoProcessList, MongoDProcess, MongoSProcess } from './mongo_process';
+import { setTimeout } from 'timers/promises';
 
 // CONFIGURATION STRINGS
 //
@@ -94,6 +96,7 @@ const errorMatchers: Array<[RegExp, string]> = [
 	[/Got signal.*/, "Mongo Program got fatal signal"],
 	[/Got signal.*/, "Mongo Program got fatal signal"],
 	[/ERROR: AddressSanitizer.*/, "Address Sanitizer failure"],
+	[/Tripwire assertion.*/, "Tripwire Assertion"]
 ];
 
 /**
@@ -205,8 +208,10 @@ const TASK_CHECK_ERRORCODES = "Check duplicate errorcodes";
 const TASK_SUPER_RUN = "Super Run";
 const TASK_INSTALL_PIP = "Install Pip";
 const TASK_GENERATE_DEBUG_BUILD_NINJA = "Generate Debug Build.ninja";
+const TASK_DEBUG_RESMOKE = "Debug Resmoke Test";
+const TASK_MOCK_CUSTOM = "Mock Custom Test";
 
-function getCommandForTask(taskName: string) {
+function getCommandForTask(taskName: string): vscode.ShellExecution {
 	let cwd = mongodbRoot;
 	const python_scripts_dir = getPythonScriptsDir();
 
@@ -268,12 +273,154 @@ function getCommandForTask(taskName: string) {
 				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars  --link-model=object --dbg=on --ninja --modules=enterprise --enable-free-mon=off ICECC=icecc CCACHE=ccache`), { cwd: cwd });
 		}
 
+
 		default: {
-			mlog(`Failed to find command: '${taskName}'`);
+			mlog(`Failed to find shell command: '${taskName}'`);
+			throw new Error(`Failed to find shell command: '${taskName}'`);
 		}
 	}
 }
 
+class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
+
+	private writeEmitter = new vscode.EventEmitter<string>();
+	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+
+	//onDidOverrideDimensions?: vscode.Event<vscode.TerminalDimensions | undefined> | undefined;
+
+	private closeEmitter = new vscode.EventEmitter<number>();
+	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+
+	private nameChangeEmitter = new vscode.EventEmitter<string>();
+	onDidChangeName: vscode.Event<string> = this.nameChangeEmitter.event;
+
+	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+
+		console.log("mlog: open called");
+
+		this.writeEmitter.fire('Starting build...\r\n');
+
+		this.closeEmitter.fire(0);
+		// throw new Error('Method not implemented.');
+	}
+	close(): void {
+		console.log("mlog: close called");
+
+		// throw new Error('Method not implemented.');
+	}
+	handleInput?(data: string): void {
+		console.log("mlog: handle Input");
+
+		// throw new Error('Method not implemented.');
+	}
+	setDimensions?(dimensions: vscode.TerminalDimensions): void {
+		console.log("mlog: setDimensions called");
+		// throw new Error('Method not implemented.');
+	}
+}
+
+ function hexEncode(str:string){
+    var hex, i;
+
+    var result = "";
+    for (i=0; i<str.length; i++) {
+        hex = str.charCodeAt(i).toString(16);
+        result += ("000"+hex).slice(-4);
+    }
+
+    return result;
+}
+
+class MockCustomBuildTaskTerminal implements vscode.Pseudoterminal {
+
+	private writeEmitter = new vscode.EventEmitter<string>();
+	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+
+	//onDidOverrideDimensions?: vscode.Event<vscode.TerminalDimensions | undefined> | undefined;
+
+	private closeEmitter = new vscode.EventEmitter<number>();
+	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+
+	private nameChangeEmitter = new vscode.EventEmitter<string>();
+	onDidChangeName: vscode.Event<string> = this.nameChangeEmitter.event;
+
+	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+
+		console.log("mlog: mock open called");
+
+		this.writeEmitter.fire('Starting build...\r\n');
+
+		this.doBuild();
+
+		// throw new Error('Method not implemented.');
+	}
+	close(): void {
+		console.log("mlog: mock close called");
+
+		// throw new Error('Method not implemented.');
+	}
+	handleInput?(data: string): void {
+		console.log(`mlog: mock handle Input: (${data.length})` + hexEncode(data));
+
+		// throw new Error('Method not implemented.');
+	}
+	setDimensions?(dimensions: vscode.TerminalDimensions): void {
+		console.log("mlog: mock setDimensions called");
+		// throw new Error('Method not implemented.');
+	}
+
+	private async doBuild  () {
+
+		for(var i  = 0; i < 10; i++) {
+			this.writeEmitter.fire('Building...\r\n');
+			await setTimeout(1000);
+		}
+
+		this.writeEmitter.fire('Done building\r\n');
+
+		this.closeEmitter.fire(0);
+
+	}
+}
+
+function getCustomCommandForTask(taskName: string): vscode.CustomExecution {
+	let cwd = mongodbRoot;
+	const python_scripts_dir = getPythonScriptsDir();
+
+	const python3 = vscode.workspace.getConfiguration("mongodev").get(CONFIG_PYTHON3) as string;
+
+	switch (taskName) {
+
+		case TASK_DEBUG_RESMOKE: {
+			// TODO - add support for virtual env?
+			// use getConfiguration.Update();
+			// Note: There is no way to get the ${relativeFile} value from the task execution
+			// so we hard code the output file
+			// let cmd = `${python3} ${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile}) 2>&1 | tee ` + testFile;
+			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
+			// const testFile = path.join(mongodbRoot, `test1.log`);
+
+			// const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
+			const cmd = "echo foo";
+
+			return new vscode.CustomExecution(async (): Promise<vscode.Pseudoterminal> => {
+				// When the task is executed, this callback will run. Here, we setup for running the task.
+				return new CustomBuildTaskTerminal();
+			});
+		}
+
+		case TASK_MOCK_CUSTOM: {
+			return new vscode.CustomExecution(async (): Promise<vscode.Pseudoterminal> => {
+				// When the task is executed, this callback will run. Here, we setup for running the task.
+				return new MockCustomBuildTaskTerminal();
+			});
+		}
+		default: {
+			mlog(`Failed to find custom command: '${taskName}'`);
+			throw new Error(`Failed to find custom command: '${taskName}'`);
+		}
+	}
+}
 /**
  * IMongoTaskDefinition exists so that all the tasks we generate have unique _ids. If they are not unique, re-running recently run tasks will have undefined behavior.
  *
@@ -345,7 +492,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 
 			let installPipTask =
 				new vscode.Task({ type: type, script: "pip1" }, vscode.TaskScope.Workspace,
-				TASK_INSTALL_PIP, "mongodev", getCommandForTask(TASK_INSTALL_PIP));
+					TASK_INSTALL_PIP, "mongodev", getCommandForTask(TASK_INSTALL_PIP));
 			installPipTask.group = vscode.TaskGroup.Build;
 			installPipTask.runOptions.reevaluateOnRerun = true;
 			installPipTask.presentationOptions.clear = true;
@@ -353,12 +500,28 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 
 			let generateNinjaTask =
 				new vscode.Task({ type: type, script: "debugNinja1" }, vscode.TaskScope.Workspace,
-				TASK_GENERATE_DEBUG_BUILD_NINJA, "mongodev", getCommandForTask(TASK_GENERATE_DEBUG_BUILD_NINJA));
+					TASK_GENERATE_DEBUG_BUILD_NINJA, "mongodev", getCommandForTask(TASK_GENERATE_DEBUG_BUILD_NINJA));
 			generateNinjaTask.group = vscode.TaskGroup.Build;
 			generateNinjaTask.runOptions.reevaluateOnRerun = true;
 			generateNinjaTask.presentationOptions.clear = true;
 
-			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask, installPipTask, generateNinjaTask];
+			let debugResmokeTask =
+				new vscode.Task({ type: type, script: "debugResmoke1" }, vscode.TaskScope.Workspace,
+					TASK_DEBUG_RESMOKE, "mongodev", getCustomCommandForTask(TASK_DEBUG_RESMOKE));
+			debugResmokeTask.group = vscode.TaskGroup.Build;
+			debugResmokeTask.runOptions.reevaluateOnRerun = true;
+			debugResmokeTask.presentationOptions.clear = true;
+
+
+			let mockTask =
+				new vscode.Task({ type: type, script: "mockTask1" }, vscode.TaskScope.Workspace,
+					TASK_MOCK_CUSTOM, "mongodev", getCustomCommandForTask(TASK_MOCK_CUSTOM));
+			mockTask.group = vscode.TaskGroup.Build;
+			mockTask.runOptions.reevaluateOnRerun = true;
+			mockTask.presentationOptions.clear = true;
+
+
+			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask, installPipTask, generateNinjaTask, debugResmokeTask, mockTask];
 		},
 		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken): vscode.Task {
 			mlog("Resolving Task: " + _task.name);
@@ -728,25 +891,127 @@ function registerDocumentLinkProvider() {
 
 }
 
+class ProcessItem implements vscode.QuickPickItem {
+	label: string;
+	description = '';
+	id: string;
+
+	constructor(public detail: string, name: string) {
+		this.label = `Process ${name}`;
+		this.id = detail;
+	}
+}
+
 /**
  * Shows a pick list using window.showQuickPick().
  */
-export async function pickMongoProcess() {
-	//let i = 0;
-	const result = await vscode.window.showQuickPick(['eins', 'zwei', 'drei'], {
-		placeHolder: 'eins, zwei or drei',
-		//onDidSelectItem: item => vscode.window.showInformationMessage(`Focus ${++i}: ${item}`)
+export async function pickMongoDProcess(): Promise<string> {
+	let mp = await mongoProcessList();
+
+	const options = mp.mongod.map((item) => {
+		return new ProcessItem(item.pid.toString(), getMongoDFriendlyName(item));
 	});
-	vscode.window.showInformationMessage(`Got: ${result}`);
+
+	const result = await vscode.window.showQuickPick(options, {
+		title: "mongod process picker",
+		canPickMany: false
+	}
+	);
+	console.log(`dpicker Got: ${JSON.stringify(result)}`);
+
+	vscode.window.showInformationMessage(`Got: ${JSON.stringify(result)}`);
 
 	// Commands are expected to return strings
-	return "3279435";
+	return result ? result?.id : "";
 }
 
+export async function pickMongoSProcess(): Promise<string> {
+	let mp = await mongoProcessList();
+
+	const options = mp.mongos.map((item) => {
+		return new ProcessItem(item.pid.toString(), getMongoSFriendlyName(item));
+	});
+
+	const result = await vscode.window.showQuickPick(options, {
+		title: "mongos process picker",
+		canPickMany: false
+	}
+	);
+	console.log(`spicker Got: ${JSON.stringify(result)}`);
+
+	vscode.window.showInformationMessage(`Got: ${JSON.stringify(result)}`);
+
+	if (result === undefined) {
+		return "unknown";
+	}
+	// Commands are expected to return strings
+	return result?.id;
+}
+
+async function attachDebugger(executable: string, pid: Number, friendlyName: string) {
+	let config = {
+		type: "lldb-vscode",
+		request: "attach",
+		name: friendlyName,
+		program: "${workspaceFolder}/" + executable,
+		pid: pid,
+		initCommands: [
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`
+		],
+	};
+
+	return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
+}
+
+function getMongoDFriendlyName(m: MongoDProcess): string {
+	return `MongoD ${m.port} ${m.replica_set_name}`;
+}
+
+export async function debugAllMongoD() {
+	let mp = await mongoProcessList();
+
+	for (const mongod of mp.mongod) {
+		console.log("Attaching to: " + mongod);
+
+		attachDebugger("mongod", mongod.pid, getMongoDFriendlyName(mongod));
+	}
+}
+
+function getMongoSFriendlyName(m: MongoSProcess): string {
+	return `MongoS ${m.port} ${m.configdb}`;
+}
+
+export async function debugAllMongoS() {
+	let mp = await mongoProcessList();
+
+	for (const mongos of mp.mongos) {
+		console.log("Attaching to: " + mongos);
+
+		attachDebugger("mongos", mongos.pid, getMongoSFriendlyName(mongos));
+	}
+}
+
+export async function debugAllMongoProcesses() {
+	debugAllMongoD();
+	debugAllMongoS();
+}
 
 function registerDebugHelpers() {
-	let disposable2 = vscode.commands.registerCommand('mongodev.pickMongoProcess', pickMongoProcess);
+	let disposable1 = vscode.commands.registerCommand('mongodev.pickMongoDProcess', pickMongoDProcess);
+	extensionContext.subscriptions.push(disposable1);
+
+	let disposable2 = vscode.commands.registerCommand('mongodev.pickMongoSProcess', pickMongoSProcess);
 	extensionContext.subscriptions.push(disposable2);
+
+	let disposable3 = vscode.commands.registerCommand('mongodev.debugAllMongoD', debugAllMongoD);
+	extensionContext.subscriptions.push(disposable3);
+
+	let disposable4 = vscode.commands.registerCommand('mongodev.debugAllMongoS', debugAllMongoS);
+	extensionContext.subscriptions.push(disposable4);
+
+	let disposable5 = vscode.commands.registerCommand('mongodev.debugAllMongoProcesses', debugAllMongoProcesses);
+	extensionContext.subscriptions.push(disposable5);
 }
 
 
@@ -757,7 +1022,7 @@ function checkForMissingFiles() {
 
 	const compileCommands = path.join(mongodbRoot, `compile_commands.json`);
 
-	if(!fs.existsSync(compileCommands)) {
+	if (!fs.existsSync(compileCommands)) {
 		vscode.window.showWarningMessage("Could not find 'compile_commands.json' file. Generate one with 'Run Task'")
 	}
 

@@ -93,8 +93,13 @@
 				"when": "editorLangId = cpp"
 			},
 			{
-				"command": "mongodev.pickMongoProcess",
-				"title": "MongoDev Pick Mongo Process",
+				"command": "mongodev.pickMongoSProcess",
+				"title": "MongoDev Pick MongoS Process",
+				"when": "editorLangId = cpp"
+			},
+			{
+				"command": "mongodev.pickMongoDProcess",
+				"title": "MongoDev Pick MongoD Process",
 				"when": "editorLangId = cpp"
 			},
 			{
@@ -104,6 +109,18 @@
 			{
 				"title": "Disable MongoDev Codelens",
 				"command": "mongodev.disableCodeLens"
+			},
+			{
+				"title": "Attach All MongoD",
+				"command": "mongodev.debugAllMongoD"
+			},
+			{
+				"title": "Attach All MongoS",
+				"command": "mongodev.debugAllMongoS"
+			},
+			{
+				"title": "Attach All Mongo Processes",
+				"command": "mongodev.debugAllMongoProcesses"
 			}
 		],
 		"languages": [
@@ -281,15 +298,17 @@
 	},
 	"devDependencies": {
 		"@types/glob": "^7.1.1",
+		"@types/memorystream": "^0.3.1",
 		"@types/mocha": "^9.1.1",
 		"@types/node": "^18.0.6",
 		"@types/vscode": "^1.43.0",
+		"@typescript-eslint/eslint-plugin": "^5.30.7",
+		"@typescript-eslint/parser": "^5.30.7",
 		"@vscode/test-electron": "^2.1.5",
 		"esbuild": "^0.14.49",
 		"eslint": "^8.20.0",
-		"@typescript-eslint/parser": "^5.30.7",
-		"@typescript-eslint/eslint-plugin": "^5.30.7",
 		"glob": "^8.0.3",
+		"memorystream": "0.3.1",
 		"mocha": "^10.0.0",
 		"typescript": "^4.2.2"
 	}

@@ -31,6 +31,14 @@
         "name" : "string.regexp, emphasis log.exception"
       },
       {
+        "match" : "Tripwire assertion.*",
+        "name" : "string.regexp, emphasis log.exception"
+      },
+      {
+        "match" : "BACKTRACE.*",
+        "name" : "string.regexp, emphasis log.exception"
+      },
+      {
         "match" : "An error occurred during the teardown of \\w+",
         "name" : "string.regexp, emphasis log.resmoke"
       },

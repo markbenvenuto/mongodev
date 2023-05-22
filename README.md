@@ -49,6 +49,8 @@ Walkthrough
 - Python install requirements
 - Create Ninja file
 - Create Compile_Commands.json
+Debugger
+- Add command to attach to all mongod, all mongos or mongod & mongos
 
 ## Roadmap/TODO
 SkunkWorks
@@ -88,6 +90,13 @@ Other?
 Use Rust more?
  https://jason-williams.co.uk/posts/speeding-up-vscode-extensions-in-2022/
 LSP to support jump to test maybe?
+Debugger
+- MPF Tree view for debugging?
+Resmoke Debugger
+- CustomExecutionTask
+- parse output and start debuggers
+- modify mongod/mongos to wait for debugger?
+
 
 ## KeyBindings
 
