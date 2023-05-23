@@ -10,30 +10,31 @@ import * as readline from 'readline';
  */
 export interface CommandOutputParser {
 
-  handleLine(line : string ) : void;
+  handleLine(line: string): void;
 }
 
-export function runCommand(command : string, args : string[], cwd: string, parser: CommandOutputParser): [number, Promise<void>] {
+export function runCommand(command: string, args: string[], cwd: string, parser: CommandOutputParser): [number, Promise<void>] {
 
   const ls = spawn(command, args,
-    { cwd: cwd,
-      env : { "MONGODB_WAIT_FOR_DEBUGGER": "1" }
+    {
+      cwd: cwd,
+      env: { "MONGODB_WAIT_FOR_DEBUGGER": "1" }
     });
 
   return [ls.pid || 0, new Promise<void>((resolve, reject) => {
 
     let ms = new MemoryStream();
 
-    let rl = readline.createInterface({input: ms});
+    let rl = readline.createInterface({ input: ms });
 
     ls.stdout.on('data', (data) => {
-    //   console.log(`stdout: ${data}`);
-    ms.write(data);
+      //   console.log(`stdout: ${data}`);
+      ms.write(data);
     });
 
     ls.stderr.on('data', (data) => {
-    //   console.error(`stderr: ${data}`);
-    ms.write(data);
+      //   console.error(`stderr: ${data}`);
+      ms.write(data);
 
     });
 
@@ -46,7 +47,7 @@ export function runCommand(command : string, args : string[], cwd: string, parse
 
 
     rl.on('line', (line) => {
-        parser.handleLine(line);
+      parser.handleLine(line);
     });
 
     rl.on('close', () => {
