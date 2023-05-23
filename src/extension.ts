@@ -1,12 +1,16 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 'use strict';
+
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { parseNinjaFile } from './ninja_parser';
 import { mongoProcessList, MongoDProcess, MongoSProcess } from './mongo_process';
 import { setTimeout } from 'timers/promises';
+import { parseResmokeCommand } from './resmoke_parser';
+
+import {Chalk} from 'chalk';
 
 // CONFIGURATION STRINGS
 //
@@ -20,6 +24,8 @@ const CONFIG_TEST_SCROLLBACK = "testScrollback";
 
 let mongodbRoot = "";
 let extensionContext: vscode.ExtensionContext;
+
+const customChalk = new Chalk({level: 3});
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -156,10 +162,10 @@ function getPythonScriptsDir() {
 	return path.join(extensionPath, "python");
 }
 
-function wrapWithMrlog(cmd: string, args: string) {
-	const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG);
+function wrapWithMrlogArray(cmd: string, args: string[]) : string[] {
+	const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG) as string;
 
-	return `${mrlog} -e ${cmd} -- ${args}`;
+	return [mrlog, `-e`, cmd,`--`].concat(args);
 }
 
 
@@ -281,45 +287,36 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 	}
 }
 
-class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
+async function attachDebuggerForResmoke(executable: string, pid: Number, friendlyName: string) {
+	const python_scripts_dir = getPythonScriptsDir();
 
-	private writeEmitter = new vscode.EventEmitter<string>();
-	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+	let config = {
+		type: "lldb-vscode",
+		request: "attach",
+		name: friendlyName,
+		program: executable,
+		pid: pid,
+		stopOnEntry : true,
+		initCommands: [
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
+			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+		],
+		// Runs before attach
+		// preRunCommands : [
+		// 	// Ignore SIGSTOP
+		// 	"process handle -s false SIGSTOP",
+		// ]
+		// Disable SIGSTOP handle
+		stopCommands: [
+			"script lldb_commands_more.StopAttachHandler()",
+		],
+	};
 
-	//onDidOverrideDimensions?: vscode.Event<vscode.TerminalDimensions | undefined> | undefined;
-
-	private closeEmitter = new vscode.EventEmitter<number>();
-	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
-
-	private nameChangeEmitter = new vscode.EventEmitter<string>();
-	onDidChangeName: vscode.Event<string> = this.nameChangeEmitter.event;
-
-	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-
-		console.log("mlog: open called");
-
-		this.writeEmitter.fire('Starting build...\r\n');
-
-		this.closeEmitter.fire(0);
-		// throw new Error('Method not implemented.');
-	}
-	close(): void {
-		console.log("mlog: close called");
-
-		// throw new Error('Method not implemented.');
-	}
-	handleInput?(data: string): void {
-		console.log("mlog: handle Input");
-
-		// throw new Error('Method not implemented.');
-	}
-	setDimensions?(dimensions: vscode.TerminalDimensions): void {
-		console.log("mlog: setDimensions called");
-		// throw new Error('Method not implemented.');
-	}
+	return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
 }
 
- function hexEncode(str:string){
+function hexEncode(str:string){
     var hex, i;
 
     var result = "";
@@ -330,6 +327,90 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 
     return result;
 }
+
+class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
+
+	private writeEmitter = new vscode.EventEmitter<string>();
+	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+
+	private closeEmitter = new vscode.EventEmitter<number>();
+	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+
+	private nameChangeEmitter = new vscode.EventEmitter<string>();
+	onDidChangeName: vscode.Event<string> = this.nameChangeEmitter.event;
+
+	private resolvedDefinition : vscode.TaskDefinition;
+	private pid: number = 0 ;
+
+	constructor(resolvedDefinition: vscode.TaskDefinition) {
+		this.resolvedDefinition = resolvedDefinition;
+	}
+
+	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+
+		console.log("CustomBuildTaskTerminal: open called");
+
+		let test_file = this.resolvedDefinition.script.split("|")[1];
+
+		this.writeEmitter.fire(`Resolved Test Definition: ${JSON.stringify(this.resolvedDefinition)}\r\n`);
+		this.writeEmitter.fire(`test_file : ${test_file}\r\n`);
+
+		const python_scripts_dir = getPythonScriptsDir();
+		const python3 = vscode.workspace.getConfiguration("mongodev").get(CONFIG_PYTHON3) as string;
+
+		const args = wrapWithMrlogArray("/bin/sh", ['-c', `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py ${test_file}`]);
+		this.writeEmitter.fire(`Args: ${JSON.stringify(args)}\r\n`);
+
+
+		let [pid, promise] = parseResmokeCommand(args[0], args.slice(1), mongodbRoot,
+		(e) => {
+			mlog("CustomBuildTaskTerminal: Process event" + JSON.stringify(e));
+			let program = e.program;
+			if(!(program.endsWith("mongod") || program.endsWith("mongos"))) {
+				mlog(`Skipping resmoke debugging on non-mongo program: ${program}`);
+				return;
+			}
+
+			if(!program.startsWith("/")) {
+				program = "${workspaceFolder}/" + program;
+			}
+
+			mlog(`CustomBuildTaskTerminal: Attaching debugger Mongo - ${e.pid} - ${e.port}`);
+			this.writeEmitter.fire(customChalk.green(`CustomBuildTaskTerminal: Attaching debugger Mongo - ${e.pid} - ${e.port}\r\n`));
+
+			attachDebuggerForResmoke(program, e.pid, `Mongo - ${e.port}`);
+		} ,
+		(line) => { this.writeEmitter.fire(line + "\r\n")} );
+
+		this.pid = pid;
+
+		promise.then(
+			()=> {
+
+				this.writeEmitter.fire(`Done running resmoke command\r\n`);
+				this.closeEmitter.fire(0);
+			}
+		);
+
+	}
+	close(): void {
+		mlog("CustomBuildTaskTerminal: close called");
+	}
+	handleInput?(data: string): void {
+		mlog(`CustomBuildTaskTerminal: handle Input: (${data.length})` + hexEncode(data));
+
+		if(data.length == 1 && data.charCodeAt(0) == 0x03) {
+		mlog(`CustomBuildTaskTerminal: Ctr-C hit, terminating pid: ${this.pid}` );
+			if(this.pid != 0 ) {
+				process.kill(this.pid);
+			}
+		}
+	}
+	setDimensions?(dimensions: vscode.TerminalDimensions): void {
+		mlog("CustomBuildTaskTerminal: setDimensions called");
+	}
+}
+
 
 class MockCustomBuildTaskTerminal implements vscode.Pseudoterminal {
 
@@ -346,27 +427,20 @@ class MockCustomBuildTaskTerminal implements vscode.Pseudoterminal {
 
 	open(initialDimensions: vscode.TerminalDimensions | undefined): void {
 
-		console.log("mlog: mock open called");
+		mlog("mlog: mock open called");
 
 		this.writeEmitter.fire('Starting build...\r\n');
 
 		this.doBuild();
-
-		// throw new Error('Method not implemented.');
 	}
 	close(): void {
-		console.log("mlog: mock close called");
-
-		// throw new Error('Method not implemented.');
+		mlog("mlog: mock close called");
 	}
 	handleInput?(data: string): void {
-		console.log(`mlog: mock handle Input: (${data.length})` + hexEncode(data));
-
-		// throw new Error('Method not implemented.');
+		mlog(`mlog: mock handle Input: (${data.length})` + hexEncode(data));
 	}
 	setDimensions?(dimensions: vscode.TerminalDimensions): void {
-		console.log("mlog: mock setDimensions called");
-		// throw new Error('Method not implemented.');
+		mlog("mlog: mock setDimensions called");
 	}
 
 	private async doBuild  () {
@@ -401,11 +475,9 @@ function getCustomCommandForTask(taskName: string): vscode.CustomExecution {
 			// const testFile = path.join(mongodbRoot, `test1.log`);
 
 			// const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
-			const cmd = "echo foo";
-
-			return new vscode.CustomExecution(async (): Promise<vscode.Pseudoterminal> => {
+			return new vscode.CustomExecution(async (resolvedDefinition: vscode.TaskDefinition): Promise<vscode.Pseudoterminal> => {
 				// When the task is executed, this callback will run. Here, we setup for running the task.
-				return new CustomBuildTaskTerminal();
+				return new CustomBuildTaskTerminal(resolvedDefinition);
 			});
 		}
 
@@ -506,9 +578,9 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			generateNinjaTask.presentationOptions.clear = true;
 
 			let debugResmokeTask =
-				new vscode.Task({ type: type, script: "debugResmoke1" }, vscode.TaskScope.Workspace,
+				new vscode.Task({ type: type, script: "debugResmoke1|${file}" }, vscode.TaskScope.Workspace,
 					TASK_DEBUG_RESMOKE, "mongodev", getCustomCommandForTask(TASK_DEBUG_RESMOKE));
-			debugResmokeTask.group = vscode.TaskGroup.Build;
+			debugResmokeTask.group = vscode.TaskGroup.Test;
 			debugResmokeTask.runOptions.reevaluateOnRerun = true;
 			debugResmokeTask.presentationOptions.clear = true;
 
@@ -516,7 +588,7 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			let mockTask =
 				new vscode.Task({ type: type, script: "mockTask1" }, vscode.TaskScope.Workspace,
 					TASK_MOCK_CUSTOM, "mongodev", getCustomCommandForTask(TASK_MOCK_CUSTOM));
-			mockTask.group = vscode.TaskGroup.Build;
+			mockTask.group = vscode.TaskGroup.Test;
 			mockTask.runOptions.reevaluateOnRerun = true;
 			mockTask.presentationOptions.clear = true;
 

@@ -306,6 +306,7 @@
 		"@typescript-eslint/parser": "^5.30.7",
 		"@vscode/test-electron": "^2.1.5",
 		"esbuild": "^0.14.49",
+		"chalk": "5.2.0",
 		"eslint": "^8.20.0",
 		"glob": "^8.0.3",
 		"memorystream": "0.3.1",

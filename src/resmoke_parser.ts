@@ -88,7 +88,7 @@ class ResmokeParser implements CommandOutputParser {
             let program = test_match.groups?.program || "unknown";
 
             console.log(`Found ${program} starting on port ${port} with ${pid}`);
-            this.handler(new ProcessStartEvent(program, port, pid));
+            this.handler(new ProcessStartEvent(program, pid, port));
             return;
         }
 
@@ -103,15 +103,14 @@ class ResmokeParser implements CommandOutputParser {
         let program = test_match.groups?.program || "unknown";
 
         console.log(`Found ${program} starting on port ${port} with ${pid}`);
-        this.handler(new ProcessStartEvent(program, port, pid));
+        this.handler(new ProcessStartEvent(program, pid, port));
     }
 }
 
-
-export async function parseResmokeCommand(command : string, args : string[], callback: ResmokeProcessStartEventHandler, lineHandler: LineHandler ) : Promise<void> {
+export function parseResmokeCommand(command : string, args : string[], cwd : string, callback: ResmokeProcessStartEventHandler, lineHandler: LineHandler ) : [number, Promise<void>] {
     let rp = new ResmokeParser(callback, lineHandler);
 
-    let x = await runCommand(command, args, rp);
+    let [pid, promise] =  runCommand(command, args, cwd, rp);
 
-    console.log(x);
+    return [pid, promise];
 }

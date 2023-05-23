@@ -13,20 +13,18 @@ export interface CommandOutputParser {
   handleLine(line : string ) : void;
 }
 
-export function runCommand(command : string, args : string[], parser: CommandOutputParser): Promise<string> {
+export function runCommand(command : string, args : string[], cwd: string, parser: CommandOutputParser): [number, Promise<void>] {
 
-        // function runCommand(CommandOutputParser parser) {
+  const ls = spawn(command, args,
+    { cwd: cwd,
+      env : { "MONGODB_WAIT_FOR_DEBUGGER": "1" }
+    });
 
-  return new Promise<string>((resolve, reject) => {
-
-    const ls = spawn(command, args);
+  return [ls.pid || 0, new Promise<void>((resolve, reject) => {
 
     let ms = new MemoryStream();
 
     let rl = readline.createInterface({input: ms});
-
-
-
 
     ls.stdout.on('data', (data) => {
     //   console.log(`stdout: ${data}`);
@@ -54,8 +52,8 @@ export function runCommand(command : string, args : string[], parser: CommandOut
     rl.on('close', () => {
       console.log("Readline Done");
 
-      resolve("Readline Done");
+      resolve();
 
     });
-  });
+  })];
 }

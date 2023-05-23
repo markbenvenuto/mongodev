@@ -6,6 +6,7 @@ RESMOKE=$2
 RELATIVE_TEST_FILE=$3
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
+echo "CWD: $PWD"
 echo run_resmoke.sh: Mapping JSTest to suite with '"$PYTHON" "$DIR/get_test_cmd.py" "$RELATIVE_TEST_FILE"'
 RESMOKE_ARGS=$($PYTHON "$DIR/get_test_cmd.py" "$RELATIVE_TEST_FILE")
 
