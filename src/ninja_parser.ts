@@ -91,7 +91,7 @@ export function parseNinjaFile(ninjaFile: string): Thenable<Map<string, string>>
                     // }
 
                     mapping_exec.set(test_name_file, test_name_exec);
-                    if(! mapping_phony.has(test_name_file) ) {
+                    if (!mapping_phony.has(test_name_file)) {
                         // Handle ungrouped unit tests
                         // console.log("FOO3:" + buffered_line);
 

@@ -18,12 +18,12 @@ export interface MongoSProcess {
 
 
 export interface MongoProceses {
-    mongod : Array<MongoDProcess>,
-    mongos : Array<MongoSProcess>,
-    shell : Array<number>,
+    mongod: Array<MongoDProcess>,
+    mongos: Array<MongoSProcess>,
+    shell: Array<number>,
 }
 
-async function mongoProcessPS() : Promise<string> {
+async function mongoProcessPS(): Promise<string> {
     // TODO
     const { stdout, stderr } = await exec('/home/mark/bin/mpf');
     //   console.log('stdout:', stdout);
@@ -32,10 +32,10 @@ async function mongoProcessPS() : Promise<string> {
     return stdout;
 }
 
-export async function mongoProcessList() : Promise<MongoProceses> {
+export async function mongoProcessList(): Promise<MongoProceses> {
     let output = await mongoProcessPS();
 
     let obj = JSON.parse(output);
-    let struct : MongoProceses = obj;
+    let struct: MongoProceses = obj;
     return struct;
 }

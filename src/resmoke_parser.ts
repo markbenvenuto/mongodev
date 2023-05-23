@@ -30,15 +30,15 @@ Resmoke launches processes, mrlog does not matter:
  */
 
 export class ProcessStartEvent {
-    constructor(program : string, pid : number, port : number) {
+    constructor(program: string, pid: number, port: number) {
         this.program = program;
         this.pid = pid;
         this.port = port;
-      }
+    }
 
     program: string;
     pid: number;
-    port : number;
+    port: number;
 }
 
 const resmoke_fixture_parser = new RegExp(/(?<program>mongo\w?) started on port (?<port>\d+) with pid (?<pid>\d+)/);
@@ -63,18 +63,18 @@ class ResmokeParser implements CommandOutputParser {
         // Echo all the lines out
         this.lineHandler(line);
 
-        if(!line.startsWith("[")) {
+        if (!line.startsWith("[")) {
             return;
         }
 
         const tag_end = line.indexOf(" ");
-        if(tag_end == -1 ) {
+        if (tag_end == -1) {
             // Malformed
             return;
         }
 
         const log_line = line.slice(tag_end + 1);
-        if(!log_line.startsWith("mongo")) {
+        if (!log_line.startsWith("mongo")) {
             // console.log("bad line", log_line)
             //return;
 
@@ -107,10 +107,10 @@ class ResmokeParser implements CommandOutputParser {
     }
 }
 
-export function parseResmokeCommand(command : string, args : string[], cwd : string, callback: ResmokeProcessStartEventHandler, lineHandler: LineHandler ) : [number, Promise<void>] {
+export function parseResmokeCommand(command: string, args: string[], cwd: string, callback: ResmokeProcessStartEventHandler, lineHandler: LineHandler): [number, Promise<void>] {
     let rp = new ResmokeParser(callback, lineHandler);
 
-    let [pid, promise] =  runCommand(command, args, cwd, rp);
+    let [pid, promise] = runCommand(command, args, cwd, rp);
 
     return [pid, promise];
 }
