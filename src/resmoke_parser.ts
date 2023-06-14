@@ -68,7 +68,7 @@ class ResmokeParser implements CommandOutputParser {
         }
 
         const tag_end = line.indexOf(" ");
-        if (tag_end == -1) {
+        if (tag_end === -1) {
             // Malformed
             return;
         }

@@ -17,17 +17,20 @@ def __lldb_init_module(debugger, *_args):
 
 stopped_once = False
 
+# See man signal(7)
+SIGSTOP = 19
+
 def StopAttachHandler():
     global stopped_once
 
     t = lldb.thread
-    SIGSTOP = 19
-    if t.GetStopReason() == lldb.eStopReasonSignal and t.GetStopReasonDataAtIndex(0) == 19:
+    if t.GetStopReason() == lldb.eStopReasonSignal and t.GetStopReasonDataAtIndex(0) == SIGSTOP:
         if stopped_once :
             print("STOPPED ONCE, ignoring SIGSTOP")
             return
 
         print("STOPPED DUE TO SIGSTOP\n")
+        # Disable default handling of SIGSTOP by the debugger, ignore SIGSTOP from now on
         lldb.debugger.HandleCommand("process handle -s false SIGSTOP")
         lldb.debugger.HandleCommand("continue")
         stopped_once = True

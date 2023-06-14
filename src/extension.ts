@@ -10,7 +10,8 @@ import { mongoProcessList, MongoDProcess, MongoSProcess } from './mongo_process'
 import { setTimeout } from 'timers/promises';
 import { parseResmokeCommand } from './resmoke_parser';
 
-import { Chalk } from 'chalk';
+// import { Chalk } from 'chalk';
+import chalk = require('chalk');
 
 // CONFIGURATION STRINGS
 //
@@ -25,7 +26,7 @@ const CONFIG_TEST_SCROLLBACK = "testScrollback";
 let mongodbRoot = "";
 let extensionContext: vscode.ExtensionContext;
 
-const customChalk = new Chalk({ level: 3 });
+const customChalk = new chalk.Instance({ level: 3 });
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -234,7 +235,7 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
 			const testFile = path.join(mongodbRoot, `test1.log`);
 
-			const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
+			const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
 
 			return new vscode.ShellExecution(cmd, {
 				cwd: cwd,
@@ -358,7 +359,7 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 		const python_scripts_dir = getPythonScriptsDir();
 		const python3 = vscode.workspace.getConfiguration("mongodev").get(CONFIG_PYTHON3) as string;
 
-		const args = wrapWithMrlogArray("/bin/sh", ['-c', `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py ${test_file}`]);
+		const args = wrapWithMrlogArray("/bin/sh", ['-c', `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 1 ${test_file}`]);
 		this.writeEmitter.fire(`Args: ${JSON.stringify(args)}\r\n`);
 
 
@@ -380,7 +381,7 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 
 				attachDebuggerForResmoke(program, e.pid, `Mongo - ${e.port}`);
 			},
-			(line) => { this.writeEmitter.fire(line + "\r\n") });
+			(line) => { this.writeEmitter.fire(line + "\r\n"); });
 
 		this.pid = pid;
 
@@ -399,9 +400,9 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 	handleInput?(data: string): void {
 		mlog(`CustomBuildTaskTerminal: handle Input: (${data.length})` + hexEncode(data));
 
-		if (data.length == 1 && data.charCodeAt(0) == 0x03) {
+		if (data.length === 1 && data.charCodeAt(0) === 0x03) {
 			mlog(`CustomBuildTaskTerminal: Ctr-C hit, terminating pid: ${this.pid}`);
-			if (this.pid != 0) {
+			if (this.pid !== 0) {
 				process.kill(this.pid);
 			}
 		}
@@ -474,7 +475,7 @@ function getCustomCommandForTask(taskName: string): vscode.CustomExecution {
 			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
 			// const testFile = path.join(mongodbRoot, `test1.log`);
 
-			// const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py \${file}`, testFile);
+			// const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
 			return new vscode.CustomExecution(async (resolvedDefinition: vscode.TaskDefinition): Promise<vscode.Pseudoterminal> => {
 				// When the task is executed, this callback will run. Here, we setup for running the task.
 				return new CustomBuildTaskTerminal(resolvedDefinition);
@@ -695,6 +696,7 @@ async function runUnitTest(test_executable: string, test_suite: string, test_nam
 
 async function debugUnitTest(test_executable: string, test_suite: string, test_name: string) {
 	// The code you place here will be executed every time your command is executed
+	const python_scripts_dir = getPythonScriptsDir();
 
 	mlog("debug args - " + test_executable + " -- " + test_suite + " -- " + test_name);
 
@@ -722,7 +724,8 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 		cwd: mongodbRoot,
 		initCommands: [
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
+			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
 		]
 	};
 
@@ -737,7 +740,8 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 			cwd: mongodbRoot,
 			initCommands: [
 				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`
+				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
+				`command script import ${python_scripts_dir}/lldb_commands_more.py`,
 			]
 		};
 	}
@@ -1021,6 +1025,8 @@ export async function pickMongoSProcess(): Promise<string> {
 }
 
 async function attachDebugger(executable: string, pid: Number, friendlyName: string) {
+	const python_scripts_dir = getPythonScriptsDir();
+
 	let config = {
 		type: "lldb-vscode",
 		request: "attach",
@@ -1029,7 +1035,8 @@ async function attachDebugger(executable: string, pid: Number, friendlyName: str
 		pid: pid,
 		initCommands: [
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`
+			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
+			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
 		],
 	};
 
@@ -1095,7 +1102,7 @@ function checkForMissingFiles() {
 	const compileCommands = path.join(mongodbRoot, `compile_commands.json`);
 
 	if (!fs.existsSync(compileCommands)) {
-		vscode.window.showWarningMessage("Could not find 'compile_commands.json' file. Generate one with 'Run Task'")
+		vscode.window.showWarningMessage("Could not find 'compile_commands.json' file. Generate one with 'Run Task'");
 	}
 
 	// TODO - add more warnings?

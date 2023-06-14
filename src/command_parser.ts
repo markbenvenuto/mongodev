@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 // import { ReadableStream , WritableStream} from "memory-streams";
 // import { MemoryStream}  from "memorystream";
-import MemoryStream = require("memorystream")
+import MemoryStream = require("memorystream");
 import * as readline from 'readline';
 
 /**
@@ -18,7 +18,7 @@ export function runCommand(command: string, args: string[], cwd: string, parser:
   const ls = spawn(command, args,
     {
       cwd: cwd,
-      env: { "MONGODB_WAIT_FOR_DEBUGGER": "1" }
+      // env: { "MONGODB_WAIT_FOR_DEBUGGER": "1" }
     });
 
   return [ls.pid || 0, new Promise<void>((resolve, reject) => {
