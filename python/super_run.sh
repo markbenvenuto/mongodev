@@ -18,10 +18,16 @@ if [[ "$FILE_NAME" =~ .*_test.*.cpp ]]; then
     echo "$MRLOG" -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
     $MRLOG -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
 
+elif [[ "$FILE_NAME" =~ .*_bm.cpp ]]; then
+    TEST_NAME=$(echo $FILE_NAME | sed "s#.*\/\(.*\).cpp#\1#")
+
+    echo "$MRLOG" -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
+    $MRLOG -c -e ninja -- -f "$NINJA_FILE" -j 200 -k 0 "+$TEST_NAME"
+
 elif [[ "$FILE_NAME" =~ .*.js ]]; then
     #./mongo "$FILE_NAME"
-    echo ./mongo --setShellParameter featureFlagFLE2Range=true  $FILE_NAME
-    ./mongo --setShellParameter featureFlagFLE2Range=true  $FILE_NAME
+    echo ./mongo --setShellParameter  $FILE_NAME
+    ./mongo --setShellParameter  $FILE_NAME
 else
     echo "$BASE_COMMAND" install-devcore
     $BASE_COMMAND install-devcore

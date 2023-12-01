@@ -71,6 +71,8 @@ def get_suite(file_name):
 
         # Replica sets needs to be expanded out
         suite = suite.replace("replsets", "replica_sets")
+        # suite = suite.replace("replsets", "replica_sets_auth")
+
 
         suite = camel_to_snake(suite)
 

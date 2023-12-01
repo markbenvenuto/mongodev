@@ -68,8 +68,13 @@ Welcome
 - add command to generate build.ninja
 - on unknown unit test binary, tell user to check config file location
 - Walkthrough?
+MLIR visualizer ideas
+https://discourse.llvm.org/t/psa-mlir-visualizers-for-lldb-16/67145
+Also see lldb_bson.py in mongo-c-driver
 
-
+TODO
+- test code lens - report error if ninja file is not found
+- test code lens - configurable env variables
 
 Future
 MPF

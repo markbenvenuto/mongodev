@@ -249,7 +249,7 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 
 		case TASK_COMPILE_COMMANDS: {
 			return new vscode.ShellExecution(wrapWithActivate(
-				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars compiledb generated-sources`), { cwd: cwd });
+				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars --ignore-errors compiledb generated-sources`), { cwd: cwd });
 		}
 
 		case TASK_GENERATE_FEATURE_FLAGS: {
@@ -292,7 +292,7 @@ async function attachDebuggerForResmoke(executable: string, pid: Number, friendl
 	const python_scripts_dir = getPythonScriptsDir();
 
 	let config = {
-		type: "lldb-vscode",
+		type: "lldb-dap",
 		request: "attach",
 		name: friendlyName,
 		program: executable,
@@ -302,6 +302,7 @@ async function attachDebuggerForResmoke(executable: string, pid: Number, friendl
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
 			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
 		],
 		// Runs before attach
 		// preRunCommands : [
@@ -376,8 +377,8 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 					program = "${workspaceFolder}/" + program;
 				}
 
-				mlog(`CustomBuildTaskTerminal: Attaching debugger Mongo - ${e.pid} - ${e.port}`);
-				this.writeEmitter.fire(customChalk.green(`CustomBuildTaskTerminal: Attaching debugger Mongo - ${e.pid} - ${e.port}\r\n`));
+				mlog(`CustomBuildTaskTerminal: Attaching debugger Mongo - PID:  ${e.pid} - Port: ${e.port}`);
+				this.writeEmitter.fire(customChalk.green(`CustomBuildTaskTerminal: Attaching debugger Mongo - PID:  ${e.pid} - Port: ${e.port}\r\n`));
 
 				attachDebuggerForResmoke(program, e.pid, `Mongo - ${e.port}`);
 			},
@@ -703,8 +704,8 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 	// Find a debugger to use
 	let debugEngine = vscode.workspace.getConfiguration("mongodev").get(CONFIG_DEBUG_ENGINE);
 	if (debugEngine === "auto") {
-		if (vscode.extensions.getExtension("llvm.lldb-vscode")) {
-			debugEngine = "llvm.lldb-vscode";
+		if (vscode.extensions.getExtension("llvm.lldb-dap")) {
+			debugEngine = "llvm.lldb-dap";
 		} else {
 			if (!vscode.extensions.getExtension("vadimcn.vscode-lldb")) {
 				vscode.window.showInformationMessage("mongodev: Could not find debugger extension 'vadimcn.vscode-lldb'. Install 'vadimcn.vscode-lldb' to support debugging unittests");
@@ -726,22 +727,25 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
 			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
 		]
 	};
 
-	// This is for https://github.com/llvm/llvm-project/tree/main/lldb/tools/lldb-vscode, aka llvm.lldb-vscode
-	if (debugEngine === "llvm.lldb-vscode") {
+	// This is for https://github.com/llvm/llvm-project/tree/main/lldb/tools/lldb-dap, aka llvm.lldb-dap
+	if (debugEngine === "llvm.lldb-dap") {
 		config = {
-			type: "lldb-vscode",
+			type: "lldb-dap",
 			request: "launch",
 			name: "Launch unittest",
 			program: path.join(mongodbRoot, test_executable),
 			args: ["--suite", test_suite, "--filter", test_name],
 			cwd: mongodbRoot,
+			env: ["LD_LIBRARY_PATH=/home/mark/src/libmongocrypt/build"],
 			initCommands: [
 				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
 				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
 				`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+				`command script import ${python_scripts_dir}/lldb_printers_more.py`,
 			]
 		};
 	}
@@ -1028,7 +1032,7 @@ async function attachDebugger(executable: string, pid: Number, friendlyName: str
 	const python_scripts_dir = getPythonScriptsDir();
 
 	let config = {
-		type: "lldb-vscode",
+		type: "lldb-dap",
 		request: "attach",
 		name: friendlyName,
 		program: "${workspaceFolder}/" + executable,
@@ -1037,6 +1041,7 @@ async function attachDebugger(executable: string, pid: Number, friendlyName: str
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
 			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
 			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
 		],
 	};
 
