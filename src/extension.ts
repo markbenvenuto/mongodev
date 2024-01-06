@@ -5,10 +5,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import { parseNinjaFile } from './ninja_parser';
 import { mongoProcessList, MongoDProcess, MongoSProcess } from './mongo_process';
 import { setTimeout } from 'timers/promises';
 import { parseResmokeCommand } from './resmoke_parser';
+import * as which from 'which';
 
 // import { Chalk } from 'chalk';
 import chalk = require('chalk');
@@ -163,6 +165,7 @@ function getPythonScriptsDir() {
 	return path.join(extensionPath, "python");
 }
 
+
 function wrapWithMrlogArray(cmd: string, args: string[]): string[] {
 	const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG) as string;
 
@@ -179,7 +182,7 @@ function wrapWithMrlogFile(cmd: string, args: string, testFile: string) {
 function wrapWithActivate(cmdWithArgs: string) {
 	const python_scripts_dir = getPythonScriptsDir();
 
-	return `/bin/sh ${python_scripts_dir}/run_virtualenv.sh ${cmdWithArgs}`;
+	return `/bin/bash ${python_scripts_dir}/run_virtualenv.sh ${cmdWithArgs}`;
 }
 
 
@@ -206,6 +209,16 @@ function findMongoDBRoot() {
 	return mongodbRoot ? mongodbRoot.uri.fsPath : "";
 }
 
+function getNinjaFile() {
+	const buildNinja = vscode.workspace.getConfiguration("mongodev").get(CONFIG_NINJA_FILE) as string;
+
+	if (!path.isAbsolute(buildNinja)) {
+		return path.join(findMongoDBRoot(), buildNinja);
+	}
+
+	return buildNinja;
+}
+
 
 const TASK_RESMOKE = "Resmoke";
 const TASK_CLANG_FORMAT = "MyClangFormat";
@@ -216,6 +229,7 @@ const TASK_SUPER_RUN = "Super Run";
 const TASK_INSTALL_PIP = "Install Pip";
 const TASK_GENERATE_DEBUG_BUILD_NINJA = "Generate Debug Build.ninja";
 const TASK_DEBUG_RESMOKE = "Debug Resmoke Test";
+const TASK_REINTSALL_POETRY = "Reinstall Poetry VirtualEnv";
 const TASK_MOCK_CUSTOM = "Mock Custom Test";
 
 function getCommandForTask(taskName: string): vscode.ShellExecution {
@@ -235,7 +249,7 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
 			const testFile = path.join(mongodbRoot, `test1.log`);
 
-			const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
+			const cmd = wrapWithMrlogFile("/bin/bash", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
 
 			return new vscode.ShellExecution(cmd, {
 				cwd: cwd,
@@ -264,7 +278,7 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 
 		case TASK_SUPER_RUN: {
 			const mrlog = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG);
-			const ninjaFile = vscode.workspace.getConfiguration("mongodev").get(CONFIG_NINJA_FILE);
+			const ninjaFile = getNinjaFile();
 
 			return new vscode.ShellExecution(wrapWithActivate(
 				`${python_scripts_dir}/super_run.sh ${mrlog} ${ninjaFile} ` + "${relativeFile}"), { cwd: cwd });
@@ -280,6 +294,9 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars  --link-model=object --dbg=on --ninja --modules=enterprise --enable-free-mon=off ICECC=icecc CCACHE=ccache`), { cwd: cwd });
 		}
 
+		case TASK_REINTSALL_POETRY: {
+			return new vscode.ShellExecution(`/bin/bash ${python_scripts_dir}/reinstall_venv.sh`, { cwd: cwd });
+		}
 
 		default: {
 			mlog(`Failed to find shell command: '${taskName}'`);
@@ -289,33 +306,39 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 }
 
 async function attachDebuggerForResmoke(executable: string, pid: Number, friendlyName: string) {
-	const python_scripts_dir = getPythonScriptsDir();
+	// Find a debugger to use
+	let debugEngine = getDebugger();
+	if (debugEngine === undefined) {
+		vscode.window.showInformationMessage("mongodev: Cannot find debugger to use for attaching, install 'lldb-dap' or  'vadimcn.vscode-lldb'.");
+		return;
+	}
 
-	let config = {
-		type: "lldb-dap",
-		request: "attach",
-		name: friendlyName,
-		program: executable,
-		pid: pid,
-		stopOnEntry: true,
-		initCommands: [
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
-			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
-			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
-		],
-		// Runs before attach
-		// preRunCommands : [
-		// 	// Ignore SIGSTOP
-		// 	"process handle -s false SIGSTOP",
-		// ]
-		// Disable SIGSTOP handle
-		stopCommands: [
-			"script lldb_commands_more.StopAttachHandler()",
-		],
-	};
+	if (debugEngine === "llvm.lldb-dap") {
 
-	return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
+		let config: vscode.DebugConfiguration = {
+			type: "lldb-dap",
+			request: "attach",
+			name: friendlyName,
+			program: executable,
+			pid: pid,
+			stopOnEntry: true,
+			initCommands: getDebuggInitScripts(),
+			// Runs before attach
+			// preRunCommands : [
+			// 	// Ignore SIGSTOP
+			// 	"process handle -s false SIGSTOP",
+			// ]
+			// Disable SIGSTOP handle
+			stopCommands: [
+				"script lldb_commands_more.StopAttachHandler()",
+			],
+		};
+
+		return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
+	}
+
+	vscode.window.showInformationMessage("mongodev: 'vadimcn.vscode-lldb' - TODO support for attach");
+
 }
 
 function hexEncode(str: string) {
@@ -360,7 +383,7 @@ class CustomBuildTaskTerminal implements vscode.Pseudoterminal {
 		const python_scripts_dir = getPythonScriptsDir();
 		const python3 = vscode.workspace.getConfiguration("mongodev").get(CONFIG_PYTHON3) as string;
 
-		const args = wrapWithMrlogArray("/bin/sh", ['-c', `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 1 ${test_file}`]);
+		const args = wrapWithMrlogArray("/bin/bash", ['-c', `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 1 ${test_file}`]);
 		this.writeEmitter.fire(`Args: ${JSON.stringify(args)}\r\n`);
 
 
@@ -476,7 +499,7 @@ function getCustomCommandForTask(taskName: string): vscode.CustomExecution {
 			// let cmd = wrapWithMrlogFile(python3, `${vscode.workspace.rootPath}/buildscripts/resmoke.py run \$(${python3} ${extensionPath}/python/get_test_cmd.py \${relativeFile})  --mongodSetParameters="{featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}" `, testFile);
 			// const testFile = path.join(mongodbRoot, `test1.log`);
 
-			// const cmd = wrapWithMrlogFile("/bin/sh", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
+			// const cmd = wrapWithMrlogFile("/bin/bash", `${python_scripts_dir}/run_virtualenv.sh ${python_scripts_dir}/run_resmoke.sh ${python3} ${mongodbRoot}/buildscripts/resmoke.py 0 \${file}`, testFile);
 			return new vscode.CustomExecution(async (resolvedDefinition: vscode.TaskDefinition): Promise<vscode.Pseudoterminal> => {
 				// When the task is executed, this callback will run. Here, we setup for running the task.
 				return new CustomBuildTaskTerminal(resolvedDefinition);
@@ -595,7 +618,14 @@ function registerTaskProviderAndListeners(collection: vscode.DiagnosticCollectio
 			mockTask.presentationOptions.clear = true;
 
 
-			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask, installPipTask, generateNinjaTask, debugResmokeTask, mockTask];
+			let reinstallPoetryTask =
+				new vscode.Task({ type: type, script: "poetry1" }, vscode.TaskScope.Workspace,
+					TASK_REINTSALL_POETRY, "mongodev", getCommandForTask(TASK_REINTSALL_POETRY));
+			reinstallPoetryTask.group = vscode.TaskGroup.Build;
+			reinstallPoetryTask.runOptions.reevaluateOnRerun = true;
+			reinstallPoetryTask.presentationOptions.clear = true;
+
+			return [resmokeTask, clangFormatTask, compileDBTask, featureFlagTask, checkErrorCodesTask, superRunTask, installPipTask, generateNinjaTask, debugResmokeTask, mockTask, reinstallPoetryTask];
 		},
 		resolveTask(_task: vscode.Task, token?: vscode.CancellationToken): vscode.Task {
 			mlog("Resolving Task: " + _task.name);
@@ -670,7 +700,7 @@ async function runUnitTest(test_executable: string, test_suite: string, test_nam
 	// TODO - warn user about unknown test executable
 	//vscode.window.showInformationMessage('Hello World!');
 	let ninja = vscode.workspace.getConfiguration("mongodev").get(CONFIG_NINJA);
-	let ninjaFile = vscode.workspace.getConfiguration("mongodev").get(CONFIG_NINJA_FILE);
+	const ninjaFile = getNinjaFile();
 	let execution = new vscode.ShellExecution(
 		`echo Running Unit Test && ${ninja} -f ${ninjaFile} ${test_executable} && ${test_executable} --suite ${test_suite} --filter ${test_name}`, {
 		//cwd: cwd,
@@ -694,7 +724,39 @@ async function runUnitTest(test_executable: string, test_suite: string, test_nam
 	return vscode.tasks.executeTask(task);
 }
 
+function getDebuggInitScripts(): string[] {
+	const python_scripts_dir = getPythonScriptsDir();
+	return [
+		`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
+		`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
+		`command script import ${python_scripts_dir}/lldb_commands_more.py`,
+		`command script import ${python_scripts_dir}/lldb_printers_more.py`,
+		// `log enable dwarf all`,
+		`log enable lldb all`,
+	]
+}
 
+function getDebugger(): string | undefined {
+	// Find a debugger to use
+	let debugEngine = vscode.workspace.getConfiguration("mongodev").get(CONFIG_DEBUG_ENGINE) as string;
+	if (debugEngine !== "auto") {
+		return debugEngine;
+	}
+
+	if (vscode.extensions.getExtension("llvm.lldb-dap")) {
+		debugEngine = "llvm.lldb-dap";
+	} else {
+		mlog("debug - could not find extension: " + "llvm.lldb-dap");
+		if (!vscode.extensions.getExtension("vadimcn.vscode-lldb")) {
+			vscode.window.showInformationMessage("mongodev: Could not find debugger extension 'vadimcn.vscode-lldb'. Install 'vadimcn.vscode-lldb' to support debugging unittests");
+			return undefined;
+		}
+		debugEngine = "vadimcn.vscode-lldb";
+	}
+
+	return debugEngine;
+
+}
 async function debugUnitTest(test_executable: string, test_suite: string, test_name: string) {
 	// The code you place here will be executed every time your command is executed
 	const python_scripts_dir = getPythonScriptsDir();
@@ -702,18 +764,27 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 	mlog("debug args - " + test_executable + " -- " + test_suite + " -- " + test_name);
 
 	// Find a debugger to use
-	let debugEngine = vscode.workspace.getConfiguration("mongodev").get(CONFIG_DEBUG_ENGINE);
-	if (debugEngine === "auto") {
-		if (vscode.extensions.getExtension("llvm.lldb-dap")) {
-			debugEngine = "llvm.lldb-dap";
-		} else {
-			if (!vscode.extensions.getExtension("vadimcn.vscode-lldb")) {
-				vscode.window.showInformationMessage("mongodev: Could not find debugger extension 'vadimcn.vscode-lldb'. Install 'vadimcn.vscode-lldb' to support debugging unittests");
-				return;
-			}
-			debugEngine = "vadimcn.vscode-lldb";
-		}
+	let debugEngine = getDebugger();
+	if (debugEngine === undefined) {
+		vscode.window.showInformationMessage("mongodev: Cannot find debugger to use for unit testing, install 'lldb-dap' or  'vadimcn.vscode-lldb'.");
+		return;
 	}
+
+	// This is for https://github.com/llvm/llvm-project/tree/main/lldb/tools/lldb-dap, aka llvm.lldb-dap
+	if (debugEngine === "llvm.lldb-dap") {
+		let configDap: vscode.DebugConfiguration = {
+			type: "lldb-dap",
+			request: "launch",
+			name: "Launch unittest",
+			program: path.join(mongodbRoot, test_executable),
+			args: ["--suite", test_suite, "--filter", test_name],
+			cwd: mongodbRoot,
+			initCommands: getDebuggInitScripts()
+		};
+
+		return vscode.debug.startDebugging(findMongoDBRootWorkspace(), configDap);
+	}
+
 
 	// This is for https://github.com/vadimcn/vscode-lldb, aka vadimcn.vscode-lldb
 	let config: vscode.DebugConfiguration = {
@@ -723,32 +794,8 @@ async function debugUnitTest(test_executable: string, test_suite: string, test_n
 		program: path.join(mongodbRoot, test_executable),
 		args: ["--suite", test_suite, "--filter", test_name],
 		cwd: mongodbRoot,
-		initCommands: [
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
-			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
-			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
-		]
+		initCommands: getDebuggInitScripts()
 	};
-
-	// This is for https://github.com/llvm/llvm-project/tree/main/lldb/tools/lldb-dap, aka llvm.lldb-dap
-	if (debugEngine === "llvm.lldb-dap") {
-		config = {
-			type: "lldb-dap",
-			request: "launch",
-			name: "Launch unittest",
-			program: path.join(mongodbRoot, test_executable),
-			args: ["--suite", test_suite, "--filter", test_name],
-			cwd: mongodbRoot,
-			env: ["LD_LIBRARY_PATH=/home/mark/src/libmongocrypt/build"],
-			initCommands: [
-				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-				`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
-				`command script import ${python_scripts_dir}/lldb_commands_more.py`,
-				`command script import ${python_scripts_dir}/lldb_printers_more.py`,
-			]
-		};
-	}
 
 	return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
 }
@@ -1029,23 +1076,28 @@ export async function pickMongoSProcess(): Promise<string> {
 }
 
 async function attachDebugger(executable: string, pid: Number, friendlyName: string) {
-	const python_scripts_dir = getPythonScriptsDir();
+	// Find a debugger to use
+	let debugEngine = getDebugger();
+	if (debugEngine === undefined) {
+		vscode.window.showInformationMessage("mongodev: Cannot find debugger to use for attaching, install 'lldb-dap' or  'vadimcn.vscode-lldb'.");
+		return;
+	}
 
-	let config = {
-		type: "lldb-dap",
-		request: "attach",
-		name: friendlyName,
-		program: "${workspaceFolder}/" + executable,
-		pid: pid,
-		initCommands: [
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_printers.py`,
-			`command script import ${mongodbRoot}/buildscripts/lldb/lldb_commands.py`,
-			`command script import ${python_scripts_dir}/lldb_commands_more.py`,
-			`command script import ${python_scripts_dir}/lldb_printers_more.py`,
-		],
-	};
+	// This is for https://github.com/llvm/llvm-project/tree/main/lldb/tools/lldb-dap, aka llvm.lldb-dap
+	if (debugEngine === "llvm.lldb-dap") {
+		let configDap: vscode.DebugConfiguration = {
+			type: "lldb-dap",
+			request: "attach",
+			name: friendlyName,
+			program: "${workspaceFolder}/" + executable,
+			pid: pid,
+			initCommands: getDebuggInitScripts()
+		};
 
-	return vscode.debug.startDebugging(findMongoDBRootWorkspace(), config);
+		return vscode.debug.startDebugging(findMongoDBRootWorkspace(), configDap);
+	}
+
+	vscode.window.showInformationMessage("mongodev: 'vadimcn.vscode-lldb' - TODO support for attach");
 }
 
 function getMongoDFriendlyName(m: MongoDProcess): string {
@@ -1102,13 +1154,46 @@ function registerDebugHelpers() {
 // TODO - see https://github.com/microsoft/vscode/blob/3a8b1fe03ebbcf57fb9c50b161db91229e2fe04a/extensions/typescript-language-features/src/utils/largeProjectStatus.ts#L42
 // for how to create a button
 //
-function checkForMissingFiles() {
+async function fileExists(file: string): Promise<boolean> {
+	try {
+		await fsPromises.stat(file);
+	} catch (exception) {
+		return false;
+	}
+
+	return true;
+}
+
+async function checkForMissingFiles() {
 
 	const compileCommands = path.join(mongodbRoot, `compile_commands.json`);
 
-	if (!fs.existsSync(compileCommands)) {
-		vscode.window.showWarningMessage("Could not find 'compile_commands.json' file. Generate one with 'Run Task'");
+	if (!await fileExists(compileCommands)) {
+		vscode.window.showWarningMessage(`MongoDev: 'compile_commands.json' not found file. Tried: ${compileCommands}. Generate one with 'Run Task'`);
 	}
 
 	// TODO - add more warnings?
+	const mrlogBin = vscode.workspace.getConfiguration("mongodev").get(CONFIG_MRLOG) as string;
+
+	// mlog(`Checking for mrlog in ${mrlogBin} `);
+	if (path.isAbsolute(mrlogBin)) {
+		if (!await fileExists(mrlogBin)) {
+			vscode.window.showWarningMessage(`MongoDev: File not found 'mrlog' binary. Tried: ${mrlogBin}. Check setting mongodev.${CONFIG_MRLOG} Download from https://github.com/markbenvenuto/mrlog`);
+		}
+	} else {
+		let location = await which(mrlogBin, { nothrow: true });
+		if (!location) {
+			vscode.window.showWarningMessage(`MongoDev: File not found 'mrlog' binary in path. Tried: ${mrlogBin}. Check setting mongodev.${CONFIG_MRLOG} Download from https://github.com/markbenvenuto/mrlog`);
+		}
+	}
+
+	const ninjaFile = getNinjaFile();
+
+	if (!await fileExists(ninjaFile)) {
+		vscode.window.showWarningMessage(`MongoDev: Build.ninja file not found for unit test support. Tried: ${ninjaFile}. Check setting mongodev.${CONFIG_NINJA_FILE}.`);
+	}
+
+	// TODO - check for debugger
 }
+
+

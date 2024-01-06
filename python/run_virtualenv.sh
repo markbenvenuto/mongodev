@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ -f venv/bin/activate ]; then
     echo "run_virtualenv.sh: Activating Virtual Env from venv/bin/activate"
@@ -15,4 +15,4 @@ else
     #TODO - enumerate which ones we tried
 fi
 
-exec $*   
+exec $*

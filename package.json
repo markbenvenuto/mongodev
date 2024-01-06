@@ -73,7 +73,7 @@
 				"mongodev.debugEngine": {
 					"type": "string",
 					"default": "auto",
-					"description": "Name of debug engine to use, in auto mode searches [llvm.lldb-vscode, vadimcn.vscode-lldb]"
+					"description": "Name of debug engine to use, in auto mode searches [llvm.lldb-dap, vadimcn.vscode-lldb]"
 				}
 			}
 		},
@@ -302,15 +302,17 @@
 		"@types/mocha": "^10.0.1",
 		"@types/node": "^16.17.1",
 		"@types/vscode": "^1.78.0",
+		"@types/which": "^3.0.3",
 		"@typescript-eslint/eslint-plugin": "^5.59.7",
 		"@typescript-eslint/parser": "^5.59.7",
 		"@vscode/test-electron": "^2.3.2",
-		"esbuild": "^0.17.19",
 		"chalk": "4.1.2",
+		"esbuild": "^0.17.19",
 		"eslint": "^8.41.0",
 		"glob": "^8.0.3",
 		"memorystream": "0.3.1",
 		"mocha": "^10.2.0",
-		"typescript": "^5.0.4"
+		"typescript": "^5.0.4",
+		"which": "4.0.0"
 	}
 }
