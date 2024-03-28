@@ -26,8 +26,8 @@ RESMOKE_ARGS=$($PYTHON "$DIR/get_test_cmd.py" "$RELATIVE_TEST_FILE")
 # 2. You must have a space after : (i.e. the colon) in yaml
 # "--mongodSetParameters={featureFlagTenantMigrations: true,featureFlagAuthorizationContract: true}"
 
-echo "$PYTHON $RESMOKE" run $RESMOKE_ARGS --runAllFeatureFlagTests
-$PYTHON "$RESMOKE" run $RESMOKE_ARGS --runAllFeatureFlagTests
+# echo "$PYTHON $RESMOKE" run $RESMOKE_ARGS --runAllFeatureFlagTests
+# $PYTHON "$RESMOKE" run $RESMOKE_ARGS --runAllFeatureFlagTests
 
-# echo "$PYTHON $RESMOKE" run $RESMOKE_ARGS
-# $PYTHON "$RESMOKE" run $RESMOKE_ARGS
+echo "$PYTHON $RESMOKE" run $RESMOKE_ARGS
+$PYTHON "$RESMOKE" run $RESMOKE_ARGS

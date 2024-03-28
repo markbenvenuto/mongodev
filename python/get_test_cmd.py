@@ -73,6 +73,9 @@ def get_suite(file_name):
         suite = suite.replace("replsets", "replica_sets")
         # suite = suite.replace("replsets", "replica_sets_auth")
 
+        if suite == "core" and "/txns/" in file:
+            # suite = "core_txns"
+            suite = "core_txns_large_txns_format"
 
         suite = camel_to_snake(suite)
 
