@@ -263,7 +263,7 @@ function getCommandForTask(taskName: string): vscode.ShellExecution {
 
 		case TASK_COMPILE_COMMANDS: {
 			return new vscode.ShellExecution(wrapWithActivate(
-				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars --ignore-errors compiledb generated-sources`), { cwd: cwd });
+				`${python3} ${mongodbRoot}/buildscripts/scons.py --variables-files=etc/scons/mongodbtoolchain_stable_clang.vars --ignore-errors compiledb generated-sources BAZEL_BUILD_ENABLED=0 BAZEL_FLAGS=--config=local`), { cwd: cwd });
 		}
 
 		case TASK_GENERATE_FEATURE_FLAGS: {
@@ -732,7 +732,7 @@ function getDebuggInitScripts(): string[] {
 		`command script import ${python_scripts_dir}/lldb_commands_more.py`,
 		`command script import ${python_scripts_dir}/lldb_printers_more.py`,
 		// `log enable dwarf all`,
-		`log enable lldb all`,
+		// `log enable lldb all`,
 	]
 }
 

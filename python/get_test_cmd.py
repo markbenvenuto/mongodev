@@ -55,9 +55,10 @@ def get_suite(file_name):
         suite = suite.replace("encryptdb", "ese")
         suite = suite.replace("fips", "ssl")
         # suite = suite.replace("fle2", "cwrwc_passthrough")
-        # suite = suite.replace("fle2", "fle2_sharding")
+        suite = suite.replace("fle2", "fle2_sharding")
         # suite = suite.replace("fle2", "cwrwc_wc_majority_passthrough")
         # suite = suite.replace("fle2", "sharded_collections_jscore_passthrough")
+        suite = suite.replace("concurrency", "concurrency_replication")
 
         return '--suite=%s %s' %(suite, file_name)
 
@@ -73,9 +74,14 @@ def get_suite(file_name):
         suite = suite.replace("replsets", "replica_sets")
         # suite = suite.replace("replsets", "replica_sets_auth")
 
+        suite = suite.replace("concurrencty", "concurrency_replication")
+
         if suite == "core" and "/txns/" in file:
             # suite = "core_txns"
             suite = "core_txns_large_txns_format"
+
+        if suite == "core":
+            suite = "replica_sets_jscore_passthrough"
 
         suite = camel_to_snake(suite)
 
